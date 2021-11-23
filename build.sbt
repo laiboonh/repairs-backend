@@ -3,6 +3,8 @@ val CirceVersion = "0.14.1"
 val ScalaTestVersion = "3.2.10"
 val SkunkVersion = "0.2.2"
 val TestContainersScalaVersion = "0.39.12"
+val CirisVersion = "2.2.1"
+val RefinedVersion = "0.9.27"
 
 lazy val root = project
   .in(file("."))
@@ -18,6 +20,10 @@ lazy val root = project
       "org.http4s" %% "http4s-dsl" % Http4sVersion,
       "io.circe" %% "circe-generic" % CirceVersion,
       "org.tpolecat" %% "skunk-core" % SkunkVersion,
+      "is.cir" %% "ciris" % CirisVersion,
+      "is.cir" %% "ciris-enumeratum" % CirisVersion,
+      "is.cir" %% "ciris-refined" % CirisVersion,
+      "eu.timepit" %% "refined-cats" % RefinedVersion,
       "org.scalatest" %% "scalatest" % ScalaTestVersion % "test",
       "com.dimafeng" %% "testcontainers-scala-scalatest" % TestContainersScalaVersion % "test",
       "com.dimafeng" %% "testcontainers-scala-postgresql" % TestContainersScalaVersion % "test"
@@ -25,4 +31,4 @@ lazy val root = project
 
     Test / fork := true //https://github.com/testcontainers/testcontainers-scala
   )
-
+  .enablePlugins(JavaAppPackaging) //https://devcenter.heroku.com/articles/deploying-scala
