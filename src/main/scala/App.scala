@@ -138,7 +138,7 @@ object App extends IOApp {
       x
     }.flatMap(p =>
       BlazeServerBuilder[IO]
-        .bindHttp(p, "localhost")
+        .bindHttp(p, "0.0.0.0")
         .withHttpApp(apis)
         .resource
         .use(_ => IO.never)
