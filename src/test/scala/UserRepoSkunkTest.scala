@@ -1,6 +1,7 @@
 import adapters.UserRepoSkunk
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
+import com.dimafeng.testcontainers.{ForAllTestContainer, PostgreSQLContainer}
 import models.User
 import natchez.Trace.Implicits.noop
 import org.scalatest.Assertion
@@ -10,15 +11,16 @@ import skunk.Session
 import skunk.data.Completion
 import skunk.implicits.toStringOps
 
-class UserRepoSkunkTest extends AnyWordSpec with Matchers {
+class UserRepoSkunkTest extends AnyWordSpec with Matchers with ForAllTestContainer {
+  override val container: PostgreSQLContainer = PostgreSQLContainer()
 
   def withUserRepo(testCode: UserRepoSkunk[IO] => IO[Assertion]): Assertion = {
     val userRepoSkunk = new UserRepoSkunk[IO](Session.single(
-      host = "localhost",
-      port = 5432,
-      user = "postgres",
-      database = "test",
-      password = Some("1234")
+      host = container.host,
+      port = container.mappedPort(5432),
+      user = container.username,
+      database = container.databaseName,
+      password = Some(container.password)
     ))
     (for {
       _ <- userRepoSkunk.createTable
