@@ -1,10 +1,12 @@
 import adapters.UserRepoSkunk
 import cats._
-import cats.effect._
 import cats.effect.std.Console
+import cats.effect._
 import cats.implicits._
-import ciris.{ConfigValue, Effect}
-import eu.timepit.refined.types.net.UserPortNumber
+import ciris.refined._
+import ciris._
+import eu.timepit.refined.auto._
+import eu.timepit.refined.types.net.DynamicPortNumber
 import fs2.io.net.Network
 import io.circe.generic.auto._
 import io.circe.syntax._
@@ -18,19 +20,7 @@ import org.http4s.headers._
 import org.http4s.implicits._
 import org.http4s.server._
 import skunk._
-import cats.effect.{ExitCode, IO, IOApp}
-import cats.implicits._
-import ciris._
-import ciris.refined._
-import enumeratum.{CirisEnum, Enum, EnumEntry}
-import eu.timepit.refined.api.Refined
-import eu.timepit.refined.auto._
-import eu.timepit.refined.cats._
-import eu.timepit.refined.collection.MinSize
-import eu.timepit.refined.string.MatchesRegex
-import eu.timepit.refined.types.net.UserPortNumber
-import eu.timepit.refined.types.string.NonEmptyString
-import scala.concurrent.duration._
+
 import java.time.Year
 import java.util.UUID
 import scala.collection.mutable
@@ -135,7 +125,7 @@ object App extends IOApp {
 
   def allRoutesComplete[F[_] : Concurrent : Network : Console]: HttpApp[F] = allRoutes[F].orNotFound
 
-  def port: ConfigValue[Effect, UserPortNumber] = env("PORT").as[UserPortNumber].default(8080)
+  def port: ConfigValue[Effect, DynamicPortNumber] = env("PORT").as[DynamicPortNumber].default(50000)
 
   override def run(args: List[String]): IO[ExitCode] = {
 
