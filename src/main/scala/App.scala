@@ -1,12 +1,12 @@
 import adapters.UserRepoSkunk
 import cats._
-import cats.effect.std.Console
 import cats.effect._
+import cats.effect.std.Console
 import cats.implicits._
-import ciris.refined._
 import ciris._
+import ciris.refined._
 import eu.timepit.refined.auto._
-import eu.timepit.refined.types.net.DynamicPortNumber
+import eu.timepit.refined.types.net.NonSystemPortNumber
 import fs2.io.net.Network
 import io.circe.generic.auto._
 import io.circe.syntax._
@@ -125,7 +125,7 @@ object App extends IOApp {
 
   def allRoutesComplete[F[_] : Concurrent : Network : Console]: HttpApp[F] = allRoutes[F].orNotFound
 
-  def port: ConfigValue[Effect, DynamicPortNumber] = env("PORT").as[DynamicPortNumber].default(50000)
+  def port: ConfigValue[Effect, NonSystemPortNumber] = env("PORT").as[NonSystemPortNumber].default(8080)
 
   override def run(args: List[String]): IO[ExitCode] = {
 
