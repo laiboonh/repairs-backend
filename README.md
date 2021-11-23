@@ -3,8 +3,7 @@
 # Setup
 
 - Install JDK via sdkman https://sdkman.io/
-- Target environment is Heroku which requires `system.properties` file to define JDK version. This should be the version
-  you should install. Same version is used in Github action
+- Heroku defaults to JDK 1.8 so this is the version that we will be using. Same version is used in Github action
 - Use instructions from https://devcenter.heroku.com/articles/getting-started-with-scala to set up heroku client
 
 # History
