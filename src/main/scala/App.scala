@@ -127,21 +127,15 @@ object App extends IOApp {
 
   def port: ConfigValue[Effect, NonSystemPortNumber] = env("PORT").as[NonSystemPortNumber].default(8080)
 
-  override def run(args: List[String]): IO[ExitCode] = {
+  private val apis: HttpApp[IO] = Router("/api" -> App.allRoutes[IO]).orNotFound
 
-    val apis: HttpApp[IO] = Router(
-      "/api" -> App.allRoutes[IO]
-    ).orNotFound
-
-    port.load[IO].map { x =>
-      println(x)
-      x
-    }.flatMap(p =>
+  override def run(args: List[String]): IO[ExitCode] =
+    port.load[IO].flatMap(
       BlazeServerBuilder[IO]
-        .bindHttp(p, "0.0.0.0")
+        .bindHttp(_, "0.0.0.0")
         .withHttpApp(apis)
         .resource
         .use(_ => IO.never)
         .as(ExitCode.Success))
-  }
 }
+

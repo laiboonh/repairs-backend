@@ -13,9 +13,15 @@ jobs:
       - name: Setup JDK
         uses: actions/setup-java@v2
         with:
-          distribution: zulu
-          java-version: 17.0
+          distribution: temurin
+          java-version: 8
       - run: echo "🖥️ The workflow is now ready to test your code on the runner."
       - name: Build and Test
         run: sbt -v +test
+      - name: Deploy to Heroku
+        uses: akhileshns/heroku-deploy@v3.12.12
+        with:
+          heroku_api_key: ${{secrets.HEROKU_API_KEY}}
+          heroku_app_name: "blooming-anchorage-54785"
+          heroku_email: "laiboonh@gmail.com"
       - run: echo "🍏 This job's status is ${{ job.status }}."
