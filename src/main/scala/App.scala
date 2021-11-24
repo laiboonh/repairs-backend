@@ -1,3 +1,4 @@
+import App.apis
 import adapters.UserRepoSkunk
 import cats._
 import cats.effect._
@@ -22,6 +23,7 @@ import org.http4s.dsl.impl._
 import org.http4s.headers._
 import org.http4s.implicits._
 import org.http4s.server._
+import ports.UserRepo
 import skunk._
 
 import java.time.Year
@@ -125,9 +127,7 @@ object App extends IOApp {
     ssl = SSL.Trusted.withFallback(true) //fallback for dev environment with no SSL
   )
 
-  def allRoutes[F[_] : Concurrent : Network : Console](session: Resource[F, Session[F]]): HttpRoutes[F] = movieRoutes[F] <+> directorRoutes[F] <+> UserRoutes(new UserRepoSkunk(session))
-
-  //  def allRoutesComplete[F[_] : Concurrent : Network : Console]: HttpApp[F] = allRoutes[F].orNotFound
+  def allRoutes[F[_] : Concurrent : Network : Console](userRepo: UserRepo[F]): HttpRoutes[F] = movieRoutes[F] <+> directorRoutes[F] <+> UserRoutes(userRepo)
 
   def portConfig: ConfigValue[Effect, NonSystemPortNumber] = env("PORT").as[NonSystemPortNumber].default(8080)
 
@@ -136,7 +136,7 @@ object App extends IOApp {
 
   def dbCredEitherConfig: ConfigValue[Effect, Either[String, DatabaseCredentials]] = env("DATABASE_URL").as[DatabaseUrl].map(DatabaseCredentials(_))
 
-  def apis[F[_] : Concurrent : Network : Console](session: Resource[F, Session[F]]): HttpApp[F] = Router("/api" -> App.allRoutes[F](session)).orNotFound
+  def apis[F[_] : Concurrent : Network : Console](userRepo: UserRepo[F]): HttpApp[F] = Router("/api" -> App.allRoutes[F](userRepo)).orNotFound
 
   case class DatabaseCredentials(username: String, password: String, host: Host, port: UserPortNumber, databaseName: String)
 
@@ -161,18 +161,26 @@ object App extends IOApp {
     }
   }
 
-  override def run(args: List[String]): IO[ExitCode] = for {
-    port <- portConfig.load[IO]
+  val databaseCredIO: IO[DatabaseCredentials] = for {
     databaseCredEither <- dbCredEitherConfig.load[IO]
-    exitCode <- databaseCredEither match {
-      case Right(databaseCred) => BlazeServerBuilder[IO]
+    databaseCredIO <- IO.fromEither(databaseCredEither.left.map(new RuntimeException(_)))
+  } yield databaseCredIO
+
+  override def run(args: List[String]): IO[ExitCode] = {
+
+    for {
+      port <- portConfig.load[IO]
+      databaseCred <- databaseCredIO
+      session = session[IO](databaseCred)
+      userRepo = new UserRepoSkunk[IO](session)
+      _ <- userRepo.createTable //bootstrap table
+      exitCode <- BlazeServerBuilder[IO]
         .bindHttp(port, "0.0.0.0")
-        .withHttpApp(apis[IO](session(databaseCred)))
+        .withHttpApp(apis[IO](userRepo))
         .resource
         .use(_ => IO.never)
         .as(ExitCode.Success)
-      case Left(databaseCredError) => IO.println(databaseCredError) >> IO(ExitCode.Error)
-    }
-  } yield exitCode
+    } yield exitCode
+  }
 }
 
