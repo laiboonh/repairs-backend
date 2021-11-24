@@ -121,7 +121,8 @@ object App extends IOApp {
     port = databaseCred.port,
     user = databaseCred.username,
     database = databaseCred.databaseName,
-    password = Some(databaseCred.password)
+    password = Some(databaseCred.password),
+    ssl = SSL.Trusted.withFallback(true) //fallback for dev environment with no SSL
   )
 
   def allRoutes[F[_] : Concurrent : Network : Console](session: Resource[F, Session[F]]): HttpRoutes[F] = movieRoutes[F] <+> directorRoutes[F] <+> UserRoutes(new UserRepoSkunk(session))

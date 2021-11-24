@@ -21,6 +21,12 @@
 - `sbt run App`
 - Visit `localhost:8080/api/...` to verify that your app is up
 
+# Production Ops
+
+- `AdminTasks` was created to facilitate this
+- `heroku run sbt console` to have a sbt console in Heroku environment
+- Execute `AdminTasks.run` in sbt console
+
 # History
 
 - `plugins.sbt` add in sbt-native-packager plugin for Heroku
