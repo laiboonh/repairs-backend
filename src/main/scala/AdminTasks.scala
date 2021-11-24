@@ -12,7 +12,7 @@ object AdminTasks {
 
   val userRepoIO: IO[UserRepoSkunk[IO]] = for {
     databaseCred <- databaseCredIO
-  } yield new UserRepoSkunk(App.session[IO](databaseCred))
+  } yield new UserRepoSkunk(App.skunkSession[IO](databaseCred))
 
   def run: Completion = userRepoIO.flatMap(userRepo => userRepo.createTable).unsafeRunSync()
 }

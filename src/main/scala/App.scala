@@ -118,7 +118,7 @@ object App extends IOApp {
     }
   }
 
-  def session[F[_] : Concurrent : Network : Console](databaseCred: DatabaseCredentials): Resource[F, Session[F]] = Session.single(
+  def skunkSession[F[_] : Concurrent : Network : Console](databaseCred: DatabaseCredentials): Resource[F, Session[F]] = Session.single(
     host = databaseCred.host,
     port = databaseCred.port,
     user = databaseCred.username,
@@ -171,7 +171,7 @@ object App extends IOApp {
     for {
       port <- portConfig.load[IO]
       databaseCred <- databaseCredIO
-      session = session[IO](databaseCred)
+      session = skunkSession[IO](databaseCred)
       userRepo = new UserRepoSkunk[IO](session)
       _ <- userRepo.createTable //bootstrap table
       exitCode <- BlazeServerBuilder[IO]
