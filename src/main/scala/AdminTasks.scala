@@ -2,21 +2,17 @@ import App.dbCredEitherConfig
 import adapters.UserRepoSkunk
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
+import skunk.data.Completion
 
 object AdminTasks {
+  val databaseCredIO: IO[App.DatabaseCredentials] = for {
+    databaseCredEither <- dbCredEitherConfig.load[IO]
+    databaseCredIO <- IO.fromEither(databaseCredEither.left.map(new RuntimeException(_)))
+  } yield databaseCredIO
 
-  private val task: IO[String] = {
-    for {
-      databaseCredEither <- dbCredEitherConfig.load[IO]
-      result = databaseCredEither match {
-        case Left(error) => error
-        case Right(databaseCred) =>
-          val userRepo = new UserRepoSkunk(App.session[IO](databaseCred))
-          userRepo.createTable
-          "Success"
-      }
-    } yield result
-  }
+  val userRepoIO: IO[UserRepoSkunk[IO]] = for {
+    databaseCred <- databaseCredIO
+  } yield new UserRepoSkunk(App.session[IO](databaseCred))
 
-  def run(): Unit = task.map(print).unsafeRunSync()
+  def run: Completion = userRepoIO.flatMap(userRepo => userRepo.createTable).unsafeRunSync()
 }
