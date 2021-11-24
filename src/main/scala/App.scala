@@ -5,8 +5,11 @@ import cats.effect.std.Console
 import cats.implicits._
 import ciris._
 import ciris.refined._
+import eu.timepit.refined.api.Refined
 import eu.timepit.refined.auto._
-import eu.timepit.refined.types.net.NonSystemPortNumber
+import eu.timepit.refined.refineV
+import eu.timepit.refined.string.MatchesRegex
+import eu.timepit.refined.types.net.{NonSystemPortNumber, UserPortNumber}
 import fs2.io.net.Network
 import io.circe.generic.auto._
 import io.circe.syntax._
@@ -113,29 +116,62 @@ object App extends IOApp {
     }
   }
 
-  def session[F[_] : Concurrent : Network : Console]: Resource[F, Session[F]] = Session.single(
-    host = "localhost",
-    port = 5432,
-    user = "postgres",
-    database = "test",
-    password = Some("1234")
+  def session[F[_] : Concurrent : Network : Console](databaseCred: DatabaseCredentials): Resource[F, Session[F]] = Session.single(
+    host = databaseCred.host,
+    port = databaseCred.port,
+    user = databaseCred.username,
+    database = databaseCred.databaseName,
+    password = Some(databaseCred.password)
   )
 
-  def allRoutes[F[_] : Concurrent : Network : Console]: HttpRoutes[F] = movieRoutes[F] <+> directorRoutes[F] <+> UserRoutes.apply(new UserRepoSkunk(session))
+  def allRoutes[F[_] : Concurrent : Network : Console](session: Resource[F, Session[F]]): HttpRoutes[F] = movieRoutes[F] <+> directorRoutes[F] <+> UserRoutes(new UserRepoSkunk(session))
 
-  def allRoutesComplete[F[_] : Concurrent : Network : Console]: HttpApp[F] = allRoutes[F].orNotFound
+  //  def allRoutesComplete[F[_] : Concurrent : Network : Console]: HttpApp[F] = allRoutes[F].orNotFound
 
-  def port: ConfigValue[Effect, NonSystemPortNumber] = env("PORT").as[NonSystemPortNumber].default(8080)
+  def portConfig: ConfigValue[Effect, NonSystemPortNumber] = env("PORT").as[NonSystemPortNumber].default(8080)
 
-  private val apis: HttpApp[IO] = Router("/api" -> App.allRoutes[IO]).orNotFound
+  type DatabaseUrl = String Refined MatchesRegex["^(.+):/{2}(.+):(.+)@(.+):(.+)/(.+)$"]
+  type Host = String Refined MatchesRegex["^([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9-]{0,61}[a-zA-Z0-9])(.([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9-]{0,61}[a-zA-Z0-9]))*$"]
 
-  override def run(args: List[String]): IO[ExitCode] =
-    port.load[IO].flatMap(
-      BlazeServerBuilder[IO]
-        .bindHttp(_, "0.0.0.0")
-        .withHttpApp(apis)
+  def dbCredEitherConfig: ConfigValue[Effect, Either[String, DatabaseCredentials]] = env("DATABASE_URL").as[DatabaseUrl].map(DatabaseCredentials(_))
+
+  def apis[F[_] : Concurrent : Network : Console](session: Resource[F, Session[F]]): HttpApp[F] = Router("/api" -> App.allRoutes[F](session)).orNotFound
+
+  case class DatabaseCredentials(username: String, password: String, host: Host, port: UserPortNumber, databaseName: String)
+
+  object DatabaseCredentials {
+    def apply(databaseUrl: DatabaseUrl): Either[String, DatabaseCredentials] = {
+      val pattern = Predef.augmentString("^(.+):/{2}(.+):(.+)@(.+):(.+)/(.+)$").r
+      val pattern(_, username, password, host, port, dbName) = databaseUrl.value
+
+      def hostEither(input: String): Either[String, Host] = refineV(input)
+
+      def portEither(input: Int): Either[String, UserPortNumber] = refineV(input)
+
+      for {
+        refinedHost <- hostEither(host)
+        parsedPort <- try Right(Integer.parseInt(port)) catch {
+          case e: Exception => Left(e.getMessage)
+        }
+        refinedPort <- portEither(parsedPort)
+      } yield DatabaseCredentials(
+        username, password, refinedHost, refinedPort, dbName
+      )
+    }
+  }
+
+  override def run(args: List[String]): IO[ExitCode] = for {
+    port <- portConfig.load[IO]
+    databaseCredEither <- dbCredEitherConfig.load[IO]
+    exitCode <- databaseCredEither match {
+      case Right(databaseCred) => BlazeServerBuilder[IO]
+        .bindHttp(port, "0.0.0.0")
+        .withHttpApp(apis[IO](session(databaseCred)))
         .resource
         .use(_ => IO.never)
-        .as(ExitCode.Success))
+        .as(ExitCode.Success)
+      case Left(databaseCredError) => IO.println(databaseCredError) >> IO(ExitCode.Error)
+    }
+  } yield exitCode
 }
 

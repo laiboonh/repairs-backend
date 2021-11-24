@@ -4,7 +4,11 @@
 
 - Install JDK via sdkman https://sdkman.io/
 - Heroku defaults to JDK 1.8 so this is the version that we will be using. Same version is used in Github action
-- Use instructions from https://devcenter.heroku.com/articles/getting-started-with-scala to set up heroku client
+- Install `direnv` https://direnv.net/docs/installation.html
+- Create `.envrc` file with content `export DATABASE_URL=postgres://<username>:<password>@<host>:<port>/<dbname>`
+- Install Postgres 13.5 (default Heroku version) https://www.enterprisedb.com/downloads/postgres-postgresql-downloads
+- (Optional) Use instructions from https://devcenter.heroku.com/articles/getting-started-with-scala to set up heroku
+  client
 
 # Development
 
@@ -13,7 +17,7 @@
 
 # Run Locally
 
-- Run App.scala
+- Run App.scala `sbt run App`
 - Visit `localhost:8080/api/...` to verify that your app is up
 
 # History
