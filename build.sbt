@@ -5,6 +5,7 @@ val SkunkVersion = "0.2.2"
 val TestContainersScalaVersion = "0.39.12"
 val CirisVersion = "2.2.1"
 val RefinedVersion = "0.9.27"
+val Log4CatsVersion = "2.1.1"
 
 lazy val root = project
   .in(file("."))
@@ -24,6 +25,8 @@ lazy val root = project
       "is.cir" %% "ciris-enumeratum" % CirisVersion,
       "is.cir" %% "ciris-refined" % CirisVersion,
       "eu.timepit" %% "refined-cats" % RefinedVersion,
+      "org.typelevel" %% "log4cats-slf4j" % Log4CatsVersion,
+      "org.slf4j" % "slf4j-simple" % "2.0.0-alpha5",
       "org.scalatest" %% "scalatest" % ScalaTestVersion % "test",
       "com.dimafeng" %% "testcontainers-scala-scalatest" % TestContainersScalaVersion % "test",
       "com.dimafeng" %% "testcontainers-scala-postgresql" % TestContainersScalaVersion % "test"

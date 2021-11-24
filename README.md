@@ -32,3 +32,5 @@
 - `plugins.sbt` add in sbt-native-packager plugin for Heroku
 - Environment variable `PORT` is to be used in heroku to bind to web server
 - Heroku also requires web server `host` to be `0.0.0.0`
+- Heroku Postgres requires communication to be over SSL. So we have to turn on SSL for skunk session
+- http://www.slf4j.org/codes.html#StaticLoggerBinder slf4j provider must be included in build path

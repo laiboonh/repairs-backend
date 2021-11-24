@@ -1,4 +1,3 @@
-import App.apis
 import adapters.UserRepoSkunk
 import cats._
 import cats.effect._
