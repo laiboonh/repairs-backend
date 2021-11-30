@@ -1,11 +1,13 @@
+package routes
+
 import cats.effect.Concurrent
 import cats.effect.std.Console
 import cats.implicits._
 import fs2.io.net.Network
 import io.circe.syntax._
+import org.http4s.HttpRoutes
 import org.http4s.circe._
 import org.http4s.dsl.Http4sDsl
-import org.http4s.{HttpRoutes, Response, Status}
 import ports.UserRepo
 
 object UserRoutes {
@@ -15,10 +17,12 @@ object UserRoutes {
 
     HttpRoutes.of[F] {
       case GET -> Root / "users" / id =>
-        repo.find(id).map {
-          case Some(user) => Response(status = Status.Ok).withEntity(user.asJson)
-          case None => Response(status = Status.NotFound)
-        }
+        for {
+          res <- repo.find(id).flatMap {
+            case Some(user) => Ok(user.asJson)
+            case None => NotFound()
+          }
+        } yield res
     }
   }
 }

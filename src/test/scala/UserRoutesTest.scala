@@ -8,15 +8,16 @@ import org.http4s.{Method, Request, Response, Status}
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 import ports.UserRepo
+import routes.UserRoutes
 
 class UserRoutesTest extends AnyWordSpec with Matchers {
   private val some: UserRepo[IO] = new UserRepo[IO] {
-    override def find(userId: String): IO[Option[User]] = IO.pure(Some(User("johndoe@gmail.com", "john doe")))
+    override def find(email: String): IO[Option[User]] = IO.pure(Some(User("johndoe@gmail.com", "john doe")))
 
     override def insert(user: User): IO[Unit] = IO.raiseError(new RuntimeException("should not invoke this"))
   }
   private val none: UserRepo[IO] = new UserRepo[IO] {
-    override def find(userId: String): IO[Option[User]] = IO.pure(None)
+    override def find(email: String): IO[Option[User]] = IO.pure(None)
 
     override def insert(user: User): IO[Unit] = IO.raiseError(new RuntimeException("should not invoke this"))
   }
@@ -38,7 +39,7 @@ class UserRoutesTest extends AnyWordSpec with Matchers {
     }
     "ports.UserRepo.find returns notFound response" should {
       "return ok status with user json" in {
-        val response: IO[Response[IO]] = UserRoutes[IO](none).orNotFound.run(
+        val response: IO[Response[IO]] = routes.UserRoutes[IO](none).orNotFound.run(
           Request(method = Method.GET, uri = uri"/users/not-used")
         )
 

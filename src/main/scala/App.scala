@@ -16,6 +16,7 @@ import org.http4s.headers._
 import org.http4s.implicits._
 import org.http4s.server._
 import ports.UserRepo
+import routes.{LoginRoutes, UserRoutes}
 
 import java.time.Year
 import java.util.UUID
@@ -109,7 +110,7 @@ object App extends IOApp {
     }
   }
 
-  def allRoutes[F[_] : Concurrent : Network : Console](userRepo: UserRepo[F]): HttpRoutes[F] = movieRoutes[F] <+> directorRoutes[F] <+> UserRoutes(userRepo)
+  def allRoutes[F[_] : Concurrent : Network : Console](userRepo: UserRepo[F]): HttpRoutes[F] = movieRoutes[F] <+> directorRoutes[F] <+> UserRoutes(userRepo) <+> new LoginRoutes(userRepo).routes
 
   def apis[F[_] : Concurrent : Network : Console](userRepo: UserRepo[F]): HttpApp[F] = Router("/api" -> App.allRoutes[F](userRepo)).orNotFound
 

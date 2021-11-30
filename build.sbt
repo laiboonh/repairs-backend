@@ -29,7 +29,8 @@ lazy val root = project
       "org.slf4j" % "slf4j-simple" % "2.0.0-alpha5",
       "org.scalatest" %% "scalatest" % ScalaTestVersion % "test",
       "com.dimafeng" %% "testcontainers-scala-scalatest" % TestContainersScalaVersion % "test",
-      "com.dimafeng" %% "testcontainers-scala-postgresql" % TestContainersScalaVersion % "test"
+      "com.dimafeng" %% "testcontainers-scala-postgresql" % TestContainersScalaVersion % "test",
+      "org.reactormonk" %% "cryptobits" % "1.3.1"
     ),
 
     Test / fork := true //https://github.com/testcontainers/testcontainers-scala

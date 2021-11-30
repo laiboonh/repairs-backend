@@ -5,7 +5,7 @@ import ciris.refined.refTypeConfigDecoder
 import ciris.{ConfigError, ConfigValue, Effect, env}
 import eu.timepit.refined.refineV
 import eu.timepit.refined.types.net.{NonSystemPortNumber, UserPortNumber}
-import types._
+import utils.types.{Host, _}
 import eu.timepit.refined.auto._
 import fs2.io.net.Network
 import natchez.Trace.Implicits.noop
@@ -48,16 +48,12 @@ object DatabaseConfig {
     val pattern = Predef.augmentString("^(.+):/{2}(.+):(.+)@(.+):(.+)/(.+)$").r
     val pattern(_, username, password, host, port, dbName) = databaseUrl.value
 
-    def hostEither(input: String): Either[String, Host] = refineV(input)
-
-    def portEither(input: Int): Either[String, UserPortNumber] = refineV(input)
-
     for {
-      refinedHost <- hostEither(host)
-      parsedPort <- try Right(Integer.parseInt(port)) catch {
+      refinedHost <- refineV(host): Either[String, Host]
+      portInt <- try Right(Integer.parseInt(port)) catch {
         case e: Exception => Left(e.getMessage)
       }
-      refinedPort <- portEither(parsedPort)
+      refinedPort <- refineV(portInt): Either[String, UserPortNumber]
     } yield DatabaseConfig(
       username, password, refinedHost, refinedPort, dbName
     )

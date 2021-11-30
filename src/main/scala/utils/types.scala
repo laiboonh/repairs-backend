@@ -1,3 +1,5 @@
+package utils
+
 import eu.timepit.refined.api.Refined
 import eu.timepit.refined.string.MatchesRegex
 
