@@ -3,17 +3,10 @@ import cats._
 import cats.effect._
 import cats.effect.std.Console
 import cats.implicits._
-import ciris._
-import ciris.refined._
-import eu.timepit.refined.api.Refined
 import eu.timepit.refined.auto._
-import eu.timepit.refined.refineV
-import eu.timepit.refined.string.MatchesRegex
-import eu.timepit.refined.types.net.{NonSystemPortNumber, UserPortNumber}
 import fs2.io.net.Network
 import io.circe.generic.auto._
 import io.circe.syntax._
-import natchez.Trace.Implicits.noop
 import org.http4s._
 import org.http4s.blaze.server.BlazeServerBuilder
 import org.http4s.circe._
@@ -23,7 +16,6 @@ import org.http4s.headers._
 import org.http4s.implicits._
 import org.http4s.server._
 import ports.UserRepo
-import skunk._
 
 import java.time.Year
 import java.util.UUID
@@ -117,69 +109,22 @@ object App extends IOApp {
     }
   }
 
-  def skunkSession[F[_] : Concurrent : Network : Console](databaseCred: DatabaseCredentials): Resource[F, Session[F]] = Session.single(
-    host = databaseCred.host,
-    port = databaseCred.port,
-    user = databaseCred.username,
-    database = databaseCred.databaseName,
-    password = Some(databaseCred.password),
-    ssl = SSL.Trusted.withFallback(true) //fallback for dev environment with no SSL
-  )
-
   def allRoutes[F[_] : Concurrent : Network : Console](userRepo: UserRepo[F]): HttpRoutes[F] = movieRoutes[F] <+> directorRoutes[F] <+> UserRoutes(userRepo)
-
-  def portConfig: ConfigValue[Effect, NonSystemPortNumber] = env("PORT").as[NonSystemPortNumber].default(8080)
-
-  type DatabaseUrl = String Refined MatchesRegex["^(.+):/{2}(.+):(.+)@(.+):(.+)/(.+)$"]
-  type Host = String Refined MatchesRegex["^([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9-]{0,61}[a-zA-Z0-9])(.([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9-]{0,61}[a-zA-Z0-9]))*$"]
-
-  def dbCredEitherConfig: ConfigValue[Effect, Either[String, DatabaseCredentials]] = env("DATABASE_URL").as[DatabaseUrl].map(DatabaseCredentials(_))
 
   def apis[F[_] : Concurrent : Network : Console](userRepo: UserRepo[F]): HttpApp[F] = Router("/api" -> App.allRoutes[F](userRepo)).orNotFound
 
-  case class DatabaseCredentials(username: String, password: String, host: Host, port: UserPortNumber, databaseName: String)
-
-  object DatabaseCredentials {
-    def apply(databaseUrl: DatabaseUrl): Either[String, DatabaseCredentials] = {
-      val pattern = Predef.augmentString("^(.+):/{2}(.+):(.+)@(.+):(.+)/(.+)$").r
-      val pattern(_, username, password, host, port, dbName) = databaseUrl.value
-
-      def hostEither(input: String): Either[String, Host] = refineV(input)
-
-      def portEither(input: Int): Either[String, UserPortNumber] = refineV(input)
-
-      for {
-        refinedHost <- hostEither(host)
-        parsedPort <- try Right(Integer.parseInt(port)) catch {
-          case e: Exception => Left(e.getMessage)
-        }
-        refinedPort <- portEither(parsedPort)
-      } yield DatabaseCredentials(
-        username, password, refinedHost, refinedPort, dbName
-      )
-    }
-  }
-
-  val databaseCredIO: IO[DatabaseCredentials] = for {
-    databaseCredEither <- dbCredEitherConfig.load[IO]
-    databaseCredIO <- IO.fromEither(databaseCredEither.left.map(new RuntimeException(_)))
-  } yield databaseCredIO
-
-  override def run(args: List[String]): IO[ExitCode] = {
-
+  override def run(args: List[String]): IO[ExitCode] =
     for {
-      port <- portConfig.load[IO]
-      databaseCred <- databaseCredIO
-      session = skunkSession[IO](databaseCred)
+      appConfig <- AppConfig.config.load[IO]
+      session = appConfig.databaseConfig.skunkSession[IO]
       userRepo = new UserRepoSkunk[IO](session)
       _ <- userRepo.createTable //bootstrap table
       exitCode <- BlazeServerBuilder[IO]
-        .bindHttp(port, "0.0.0.0")
+        .bindHttp(appConfig.apiConfig.port, "0.0.0.0")
         .withHttpApp(apis[IO](userRepo))
         .resource
         .use(_ => IO.never)
         .as(ExitCode.Success)
     } yield exitCode
-  }
 }
 
