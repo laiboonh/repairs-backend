@@ -23,7 +23,10 @@
 
 # Production Ops
 
-- `AdminTasks` was created to facilitate this
+To facilitate interaction with Postgres in Heroku
+
+- `admin.Tasks` was created to facilitate this
+- `sbt console` to have sbt console in Local environment
 - `heroku run sbt console` to have a sbt console in Heroku environment
 - Execute `AdminTasks.run` in sbt console
 
@@ -34,3 +37,4 @@
 - Heroku also requires web server `host` to be `0.0.0.0`
 - Heroku Postgres requires communication to be over SSL. So we have to turn on SSL for skunk session
 - http://www.slf4j.org/codes.html#StaticLoggerBinder slf4j provider must be included in build path
+- Added https://github.com/typelevel/kind-projector to support higher-kinded types

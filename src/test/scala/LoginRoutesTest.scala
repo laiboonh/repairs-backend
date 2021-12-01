@@ -1,25 +1,23 @@
 import adapters.UserRepoSkunk
+import auth.AuthHelper
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import com.dimafeng.testcontainers.{ForAllTestContainer, PostgreSQLContainer}
-import io.circe.Json
-import models.{Role, User}
+import models.{LoginDetails, Role, User}
+import natchez.Trace.Implicits.noop
 import org.http4s.circe._
+import org.http4s.headers.Authorization
 import org.http4s.implicits._
-import org.http4s.{Method, Request, Response, Status, UriTemplate}
+import org.http4s.{EntityEncoder, Method, Request, Status}
 import org.scalatest.Assertion
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
-import routes.UserRoutes
+import routes.LoginRoutes
 import skunk.{Session, Strategy}
-import skunk.data.Completion
-import skunk.implicits.toStringOps
-import natchez.Trace.Implicits.noop
-import org.http4s.UriTemplate.PathElm
 
 import java.util.UUID
 
-class UserRoutesTest extends AnyWordSpec with Matchers with ForAllTestContainer {
+class LoginRoutesTest extends AnyWordSpec with Matchers with ForAllTestContainer {
   override val container: PostgreSQLContainer = PostgreSQLContainer()
 
   def withUserRepo(testCode: UserRepoSkunk[IO] => IO[Assertion]): Assertion = {
@@ -46,40 +44,21 @@ class UserRoutesTest extends AnyWordSpec with Matchers with ForAllTestContainer 
     } yield assertion).unsafeRunSync()
   }
 
-  private def uri(id: UUID) = UriTemplate(
-    path = List(PathElm("users"), PathElm(id.toString))
-  ).toUriIfPossible.get
-
-  "GET /users/id" when {
-    "given id belongs to an existing user" should {
-      "return ok status with user json" in withUserRepo { userRepoSkunk =>
+  "POST /login/" when {
+    "given existing id" should {
+      "return token in header" in withUserRepo { userRepoSkunk =>
         val id = UUID.randomUUID()
+        val body = LoginDetails(id)
+        implicit val directorDecoder: EntityEncoder[IO, LoginDetails] = jsonEncoderOf[IO, LoginDetails]
         for {
           _ <- userRepoSkunk.create(User(id, "foo", Role.BasicUser))
-          res <- UserRoutes(userRepoSkunk).orNotFound.run(
-            Request(method = Method.GET, uri = uri(id))
+          authHelper = new AuthHelper(userRepoSkunk)
+          res <- new LoginRoutes(userRepoSkunk).routes(authHelper.jwtStatefulAuth).orNotFound.run(
+            Request(method = Method.POST, uri = uri"/login").withEntity(body)
           )
-          json <- res.as[Json]
         } yield {
-          val expectedJson = Json.obj(
-            ("id", Json.fromString(id.toString)),
-            ("name", Json.fromString("foo")),
-            ("role", Json.fromString("BasicUser"))
-          )
           res.status shouldBe Status.Ok
-          json shouldBe expectedJson
-        }
-      }
-    }
-    "ports.UserRepo.find returns notFound response" should {
-      "return ok status with user json" in withUserRepo { userRepoSkunk =>
-        for {
-          res <- routes.UserRoutes(userRepoSkunk).orNotFound.run(
-            Request(method = Method.GET, uri = uri(UUID.randomUUID()))
-          )
-        } yield {
-          res.status shouldBe Status.NotFound
-          res.body.compile.toVector.unsafeRunSync.isEmpty shouldBe true
+          res.headers.get[Authorization] shouldBe defined
         }
       }
     }

@@ -2,14 +2,14 @@ import adapters.UserRepoSkunk
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import com.dimafeng.testcontainers.{ForAllTestContainer, PostgreSQLContainer}
-import models.User
+import models.{Role, User}
 import natchez.Trace.Implicits.noop
 import org.scalatest.Assertion
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
-import skunk.Session
-import skunk.data.Completion
-import skunk.implicits.toStringOps
+import skunk.{Session, Strategy}
+
+import java.util.UUID
 
 class UserRepoSkunkTest extends AnyWordSpec with Matchers with ForAllTestContainer {
   override val container: PostgreSQLContainer = PostgreSQLContainer()
@@ -20,35 +20,38 @@ class UserRepoSkunkTest extends AnyWordSpec with Matchers with ForAllTestContain
       port = container.mappedPort(5432),
       user = container.username,
       database = container.databaseName,
-      password = Some(container.password)
+      password = Some(container.password),
+      strategy = Strategy.SearchPath
     ))
     (for {
-      _ <- userRepoSkunk.createTable
+      _ <- userRepoSkunk.session.use(_.execute(UserRepoSkunk.createRoleEnum))
+      _ <- userRepoSkunk.session.use(_.execute(UserRepoSkunk.createTable))
       assertion <- testCode(userRepoSkunk)
-      _ <- truncateTable(userRepoSkunk, "users")
+      _ <- userRepoSkunk.session.use { s =>
+        s.transaction.use { _ =>
+          for {
+            _ <- s.execute(UserRepoSkunk.dropTable)
+            res <- s.execute(UserRepoSkunk.dropEnum)
+          } yield res
+        }
+      }
     } yield assertion).unsafeRunSync()
   }
 
-  def truncateTable(userRepo: UserRepoSkunk[IO], tableName: String): IO[Completion] = {
-    val command = sql"truncate #$tableName".command
-    userRepo.session.use { s =>
-      s.execute(command)
-    }
-  }
-
-  "Skunk.find" when {
-    "given email of existing user" should {
+  "Skunk.retrieve" when {
+    val id = UUID.randomUUID()
+    "given id of existing user" should {
       "return some user" in withUserRepo { userRepoSkunk =>
-        val newUser = User("johndoe@gmail.com", "john doe")
+        val newUser = User(id, "john doe", Role("BasicUser"))
         for {
-          _ <- userRepoSkunk.insert(newUser)
-          maybeUser <- userRepoSkunk.find("johndoe@gmail.com")
+          _ <- userRepoSkunk.create(newUser)
+          maybeUser <- userRepoSkunk.retrieve(id)
         } yield maybeUser shouldBe Some(newUser)
       }
     }
-    "given email of non existing user" should {
+    "given id of non existing user" should {
       "return none" in withUserRepo { userRepoSkunk =>
-        userRepoSkunk.find("alice@gmail.com").map(_ shouldBe None)
+        userRepoSkunk.retrieve(id).map(_ shouldBe None)
       }
     }
   }

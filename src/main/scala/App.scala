@@ -1,12 +1,15 @@
 import adapters.UserRepoSkunk
+import auth.AuthHelper
 import cats._
 import cats.effect._
 import cats.effect.std.Console
 import cats.implicits._
+import conf.AppConfig
 import eu.timepit.refined.auto._
 import fs2.io.net.Network
 import io.circe.generic.auto._
 import io.circe.syntax._
+import models.User
 import org.http4s._
 import org.http4s.blaze.server.BlazeServerBuilder
 import org.http4s.circe._
@@ -14,9 +17,10 @@ import org.http4s.dsl._
 import org.http4s.dsl.impl._
 import org.http4s.headers._
 import org.http4s.implicits._
-import org.http4s.server._
 import ports.UserRepo
 import routes.{LoginRoutes, UserRoutes}
+import tsec.authentication._
+import tsec.mac.jca.HMACSHA256
 
 import java.time.Year
 import java.util.UUID
@@ -110,19 +114,40 @@ object App extends IOApp {
     }
   }
 
-  def allRoutes[F[_] : Concurrent : Network : Console](userRepo: UserRepo[F]): HttpRoutes[F] = movieRoutes[F] <+> directorRoutes[F] <+> UserRoutes(userRepo) <+> new LoginRoutes(userRepo).routes
+  def allRoutes[F[_] : Concurrent : Network : Console](authHelper: AuthHelper[F])(userRepo: UserRepo[F]): HttpApp[F] = (
+    movieRoutes[F] <+>
+      directorRoutes[F] <+>
+      UserRoutes(userRepo) <+>
+      new LoginRoutes(userRepo).routes(authHelper.jwtStatefulAuth) <+>
+      test(authHelper)
+    ).orNotFound
 
-  def apis[F[_] : Concurrent : Network : Console](userRepo: UserRepo[F]): HttpApp[F] = Router("/api" -> App.allRoutes[F](userRepo)).orNotFound
+  def test[F[_] : Concurrent](authHelper: AuthHelper[F]): HttpRoutes[F] = {
+    val dsl = Http4sDsl[F]
+    import dsl._
+    authHelper.auth.liftService(TSecAuthService {
+      //Where user is the case class User above
+      case request@GET -> Root / "test" asAuthed user =>
+        /*
+        Note: The request is of type: SecuredRequest, which carries:
+        1. The request
+        2. The Authenticator (i.e token)
+        3. The identity (i.e in this case, User)
+         */
+        val r: SecuredRequest[F, User, AugmentedJWT[HMACSHA256, UUID]] = request
+        Ok()
+    })
+  }
 
   override def run(args: List[String]): IO[ExitCode] =
     for {
       appConfig <- AppConfig.config.load[IO]
       session = appConfig.databaseConfig.skunkSession[IO]
       userRepo = new UserRepoSkunk[IO](session)
-      _ <- userRepo.createTable //bootstrap table
+      authHelper = new AuthHelper[IO](userRepo)
       exitCode <- BlazeServerBuilder[IO]
         .bindHttp(appConfig.apiConfig.port, "0.0.0.0")
-        .withHttpApp(apis[IO](userRepo))
+        .withHttpApp(allRoutes[IO](authHelper)(userRepo))
         .resource
         .use(_ => IO.never)
         .as(ExitCode.Success)

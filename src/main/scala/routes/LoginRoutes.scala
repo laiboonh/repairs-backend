@@ -2,30 +2,27 @@ package routes
 
 import cats.effect.kernel.Concurrent
 import cats.implicits._
+import io.circe.Encoder
 import io.circe.generic.auto._
-import models.User
+import io.circe.generic.semiauto.deriveEncoder
+import models.{LoginDetails, User}
 import org.http4s._
 import org.http4s.circe.jsonOf
 import org.http4s.dsl.Http4sDsl
-import org.reactormonk.{CryptoBits, PrivateKey}
 import ports.UserRepo
+import tsec.authentication.JWTAuthenticator
+import tsec.mac.jca.HMACSHA256
 
-import java.time._
+import java.util.UUID
 
 class LoginRoutes[F[_] : Concurrent](userRepo: UserRepo[F]) {
 
-  private val key = PrivateKey(scala.io.Codec.toUTF8(scala.util.Random.alphanumeric.take(20).mkString("")))
-  private val crypto = CryptoBits(key)
-  private val clock = Clock.systemUTC
-
-  def verifyLogin(email: String): F[Either[String, User]] = userRepo.find(email) map {
+  def verifyLogin(id: UUID): F[Either[String, User]] = userRepo.retrieve(id) map {
     case Some(value) => Right(value)
-    case None => Left("user not found")
+    case None => Left(s"User $id not found")
   }
 
-  case class LoginDetails(email: String)
-
-  val routes: HttpRoutes[F] = {
+  def routes(authenticator: JWTAuthenticator[F, UUID, User, HMACSHA256]): HttpRoutes[F] = {
     val dsl = Http4sDsl[F]
     import dsl._
     implicit val loginDetailsDecoder: EntityDecoder[F, LoginDetails] = jsonOf[F, LoginDetails]
@@ -34,12 +31,11 @@ class LoginRoutes[F[_] : Concurrent](userRepo: UserRepo[F]) {
       case req@POST -> Root / "login" =>
         for {
           loginDetails <- req.as[LoginDetails]
-          userEither <- verifyLogin(loginDetails.email)
+          userEither <- verifyLogin(loginDetails.id)
           res <- userEither match {
             case Left(error) => Forbidden(error)
-            case Right(value) =>
-              val message = crypto.signToken(value.email, clock.millis.toString)
-              Ok(s"Welcome back! ${value.name}").map(_.addCookie(ResponseCookie("authcookie", message)))
+            case Right(user) =>
+              authenticator.create(user.id).map(authenticator.embed(Response(Status.Ok), _))
           }
         } yield res
     }

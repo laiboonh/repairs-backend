@@ -2,8 +2,14 @@ package ports
 
 import models.User
 
-trait UserRepo[F[_]] {
-  def find(email: String): F[Option[User]]
+import java.util.UUID
 
-  def insert(user: User): F[Unit]
+trait UserRepo[F[_]] {
+  def create(user: User): F[User]
+
+  def retrieve(id: UUID): F[Option[User]]
+
+  def update(user: User): F[User]
+
+  def delete(id: UUID): F[Unit]
 }

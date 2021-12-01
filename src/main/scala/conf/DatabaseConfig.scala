@@ -1,29 +1,17 @@
-import cats.effect.{Concurrent, Resource}
+package conf
+
 import cats.effect.std.Console
-import cats.implicits._
-import ciris.refined.refTypeConfigDecoder
+import cats.effect.{Concurrent, Resource}
+import ciris.refined._
 import ciris.{ConfigError, ConfigValue, Effect, env}
-import eu.timepit.refined.refineV
-import eu.timepit.refined.types.net.{NonSystemPortNumber, UserPortNumber}
-import utils.types.{Host, _}
 import eu.timepit.refined.auto._
+import eu.timepit.refined.refineV
+import eu.timepit.refined.types.net.UserPortNumber
 import fs2.io.net.Network
 import natchez.Trace.Implicits.noop
+import skunk.util.Typer.Strategy
 import skunk.{SSL, Session}
-
-case class AppConfig(apiConfig: ApiConfig, databaseConfig: DatabaseConfig)
-
-object AppConfig {
-  def config: ConfigValue[Effect, AppConfig] = (ApiConfig.config, DatabaseConfig.config).parMapN { (api, database) =>
-    AppConfig(api, database)
-  }
-}
-
-case class ApiConfig(port: NonSystemPortNumber)
-
-object ApiConfig {
-  val config: ConfigValue[Effect, ApiConfig] = env("PORT").as[NonSystemPortNumber].default(8080).map(ApiConfig(_))
-}
+import utils.types.{DatabaseUrl, Host}
 
 case class DatabaseConfig(username: String, password: String, host: Host, port: UserPortNumber, databaseName: String) {
   def skunkSession[F[_] : Concurrent : Network : Console]: Resource[F, Session[F]] = Session.single(
@@ -32,6 +20,7 @@ case class DatabaseConfig(username: String, password: String, host: Host, port: 
     user = username,
     database = databaseName,
     password = Some(password),
+    strategy = Strategy.SearchPath,
     ssl = SSL.Trusted.withFallback(true) //fallback for dev environment with no SSL
   )
 }

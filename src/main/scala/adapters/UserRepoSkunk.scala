@@ -1,44 +1,90 @@
 package adapters
 
-
 import cats.effect._
 import cats.implicits.toFunctorOps
-import models.User
+import models.{Role, User}
 import ports.UserRepo
 import skunk._
 import skunk.codec.all._
 import skunk.data.Completion
 import skunk.implicits._
 
+import java.util.UUID
+
 class UserRepoSkunk[F[_] : Concurrent](val session: Resource[F, Session[F]]) extends UserRepo[F] {
 
-  private val findOne: Query[String, User] =
-    sql"select email, name from users where email = $name".query(varchar ~ varchar).gmap[User]
+  val userDecoder: Decoder[User] =
+    (uuid ~ varchar ~ Role.codec).map { case id ~ name ~ role => User(id, name, role) }
 
-  override def find(email: String): F[Option[User]] = session.use { s =>
-    s.prepare(findOne).use { ps =>
-      ps.option(email)
+  val userEncoder: Encoder[User] = (uuid ~ varchar ~ Role.codec).values.contramap(
+    (user: User) => user.id ~ user.name ~ user.role)
+
+  private val retrieve: Query[UUID, User] =
+    sql"select id, name, role from users where id = $uuid".query(userDecoder)
+
+  override def retrieve(id: UUID): F[Option[User]] = session.use { s =>
+    s.prepare(retrieve).use { ps =>
+      ps.option(id)
     }
   }
 
-  private val insertOne: Command[User] =
-    sql"INSERT INTO users VALUES ($varchar, $varchar)"
-      .command
-      .gcontramap[User]
+  private val create: Command[User] =
+    sql"INSERT INTO users (id, name, role) VALUES $userEncoder".command
 
-  override def insert(user: User): F[Unit] = session.use { s =>
-    s.prepare(insertOne).use(_.execute(user)).void
+  override def create(user: User): F[User] = session.use { s =>
+    s.prepare(create).use { session =>
+      session.execute(user).map(_ => user)
+    }
   }
 
-  def createTable: F[Completion] = session.use { s =>
-    val command =
-      sql"""
+  private val update: Command[User] =
+    sql"UPDATE users SET name = $varchar, role = ${Role.codec}"
+      .command
+      .contramap {
+        case User(_, name, role) => name ~ role
+      }
+
+  override def update(user: User): F[User] = session.use { s =>
+    s.prepare(update).use { session =>
+      session.execute(user).map(_ => user)
+    }
+  }
+
+  private val delete: Command[UUID] =
+    sql"DELETE FROM user WHERE id = $uuid".command
+
+  override def delete(id: UUID): F[Unit] = session.use { s =>
+    s.prepare(delete).use { session =>
+      session.execute(id).void
+    }
+  }
+
+
+}
+
+object UserRepoSkunk {
+  val createTable: Command[Void] =
+    sql"""
         CREATE TABLE IF NOT EXISTS users (
-          "email" varchar NOT NULL,
+          "id" uuid NOT NULL,
           "name" varchar NOT NULL,
-          CONSTRAINT users_pk PRIMARY KEY (email)
+          "role" role NOT NULL,
+          CONSTRAINT users_pk PRIMARY KEY (id)
         )
         """.command
-    s.execute(command)
-  }
+
+  val dropTable: Command[Void] =
+    sql"""
+         DROP TABLE users
+       """.command
+
+  val createRoleEnum: Command[Void] =
+    sql"""
+         CREATE TYPE role AS ENUM ('Administrator', 'BasicUser')
+       """.command
+
+  val dropEnum: Command[Void] =
+    sql"""
+         DROP TYPE role
+       """.command
 }
