@@ -3,6 +3,8 @@ import auth.AuthHelper
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import com.dimafeng.testcontainers.{ForAllTestContainer, PostgreSQLContainer}
+import conf.{ApiConfig, AppConfig, DatabaseConfig}
+import eu.timepit.refined.auto._
 import models.{LoginDetails, Role, User}
 import natchez.Trace.Implicits.noop
 import org.http4s.circe._
@@ -16,6 +18,9 @@ import routes.LoginRoutes
 import skunk.{Session, Strategy}
 
 import java.util.UUID
+import scala.concurrent.duration._
+import scala.language.postfixOps
+
 
 class LoginRoutesTest extends AnyWordSpec with Matchers with ForAllTestContainer {
   override val container: PostgreSQLContainer = PostgreSQLContainer()
@@ -44,6 +49,11 @@ class LoginRoutesTest extends AnyWordSpec with Matchers with ForAllTestContainer
     } yield assertion).unsafeRunSync()
   }
 
+  private val testAppConfig: AppConfig = AppConfig(
+    ApiConfig(1234, 1 minutes),
+    DatabaseConfig("", "", "0.0.0.0", 1234, "")
+  )
+
   "POST /login/" when {
     "given existing id" should {
       "return token in header" in withUserRepo { userRepoSkunk =>
@@ -52,7 +62,7 @@ class LoginRoutesTest extends AnyWordSpec with Matchers with ForAllTestContainer
         implicit val directorDecoder: EntityEncoder[IO, LoginDetails] = jsonEncoderOf[IO, LoginDetails]
         for {
           _ <- userRepoSkunk.create(User(id, "foo", Role.BasicUser))
-          authHelper = new AuthHelper(userRepoSkunk)
+          authHelper = new AuthHelper(testAppConfig, userRepoSkunk)
           res <- new LoginRoutes(userRepoSkunk).routes(authHelper.jwtStatefulAuth).orNotFound.run(
             Request(method = Method.POST, uri = uri"/login").withEntity(body)
           )

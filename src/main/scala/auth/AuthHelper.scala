@@ -3,6 +3,7 @@ package auth
 import cats.data.OptionT
 import cats.effect.Sync
 import cats.{Id, MonadError}
+import conf.AppConfig
 import models.User
 import ports.UserRepo
 import tsec.authentication.{AugmentedJWT, BackingStore, JWTAuthenticator, SecuredRequestHandler}
@@ -11,10 +12,9 @@ import tsec.mac.jca.{HMACSHA256, MacSigningKey}
 import utils.GenericMemoryStore
 
 import java.util.UUID
-import scala.concurrent.duration.DurationInt
 import scala.language.postfixOps
 
-class AuthHelper[F[_]](val userRepo: UserRepo[F])(implicit F: MonadError[F, Throwable], S: Sync[F]) {
+class AuthHelper[F[_]](appConfig: AppConfig, val userRepo: UserRepo[F])(implicit F: MonadError[F, Throwable], S: Sync[F]) {
 
   private val jwtStore =
     GenericMemoryStore[F, SecureRandomId, AugmentedJWT[HMACSHA256, UUID]](s => SecureRandomId.coerce(s.id))
@@ -35,7 +35,7 @@ class AuthHelper[F[_]](val userRepo: UserRepo[F])(implicit F: MonadError[F, Thro
 
   val jwtStatefulAuth: JWTAuthenticator[F, UUID, User, HMACSHA256] =
     JWTAuthenticator.backed.inBearerToken(
-      expiryDuration = 1 minute, //Absolute expiration time
+      expiryDuration = appConfig.apiConfig.tokenExpirationTime,
       maxIdle = None,
       tokenStore = jwtStore,
       identityStore = userStore,

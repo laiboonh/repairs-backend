@@ -144,7 +144,7 @@ object App extends IOApp {
       appConfig <- AppConfig.config.load[IO]
       session = appConfig.databaseConfig.skunkSession[IO]
       userRepo = new UserRepoSkunk[IO](session)
-      authHelper = new AuthHelper[IO](userRepo)
+      authHelper = new AuthHelper[IO](appConfig, userRepo)
       exitCode <- BlazeServerBuilder[IO]
         .bindHttp(appConfig.apiConfig.port, "0.0.0.0")
         .withHttpApp(allRoutes[IO](authHelper)(userRepo))

@@ -38,11 +38,11 @@ class UserRepoSkunkTest extends AnyWordSpec with Matchers with ForAllTestContain
     } yield assertion).unsafeRunSync()
   }
 
-  "Skunk.retrieve" when {
+  "retrieve" when {
     val id = UUID.randomUUID()
     "given id of existing user" should {
       "return some user" in withUserRepo { userRepoSkunk =>
-        val newUser = User(id, "john doe", Role("BasicUser"))
+        val newUser = User(id, "john doe", Role.BasicUser)
         for {
           _ <- userRepoSkunk.create(newUser)
           maybeUser <- userRepoSkunk.retrieve(id)
@@ -52,6 +52,47 @@ class UserRepoSkunkTest extends AnyWordSpec with Matchers with ForAllTestContain
     "given id of non existing user" should {
       "return none" in withUserRepo { userRepoSkunk =>
         userRepoSkunk.retrieve(id).map(_ shouldBe None)
+      }
+    }
+  }
+
+  "delete" when {
+    val id = UUID.randomUUID()
+    "given id of existing user" should {
+      "return unit" in withUserRepo { userRepoSkunk =>
+        val newUser = User(id, "john doe", Role.BasicUser)
+        for {
+          _ <- userRepoSkunk.create(newUser)
+          result <- userRepoSkunk.delete(id)
+        } yield result shouldBe()
+      }
+    }
+    "given id of non existing user" should {
+      "return unit" in withUserRepo { userRepoSkunk =>
+        userRepoSkunk.delete(id).map(_ shouldBe())
+      }
+    }
+  }
+
+  "update" when {
+    "given an existing user" should {
+      "return updated user" in withUserRepo { userRepoSkunk =>
+        val id = UUID.randomUUID()
+        val newUser = User(id, "john doe", Role.BasicUser)
+        for {
+          _ <- userRepoSkunk.create(newUser)
+          updatedUser = newUser.copy(name = "foo", role = Role.Administrator)
+          result <- userRepoSkunk.update(updatedUser)
+        } yield result shouldBe updatedUser
+      }
+    }
+    "given a non existing user" should {
+      "will return the same user" in withUserRepo { userRepoSkunk =>
+        val id = UUID.randomUUID()
+        val newUser = User(id, "john doe", Role.BasicUser)
+        for {
+          result <- userRepoSkunk.update(newUser)
+        } yield result shouldBe newUser
       }
     }
   }

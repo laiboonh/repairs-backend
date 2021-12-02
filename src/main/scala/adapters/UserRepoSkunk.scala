@@ -6,7 +6,6 @@ import models.{Role, User}
 import ports.UserRepo
 import skunk._
 import skunk.codec.all._
-import skunk.data.Completion
 import skunk.implicits._
 
 import java.util.UUID
@@ -38,10 +37,10 @@ class UserRepoSkunk[F[_] : Concurrent](val session: Resource[F, Session[F]]) ext
   }
 
   private val update: Command[User] =
-    sql"UPDATE users SET name = $varchar, role = ${Role.codec}"
+    sql"UPDATE users SET name = $varchar, role = ${Role.codec} where id = $uuid"
       .command
       .contramap {
-        case User(_, name, role) => name ~ role
+        case User(id, name, role) => name ~ role ~ id
       }
 
   override def update(user: User): F[User] = session.use { s =>
@@ -51,15 +50,13 @@ class UserRepoSkunk[F[_] : Concurrent](val session: Resource[F, Session[F]]) ext
   }
 
   private val delete: Command[UUID] =
-    sql"DELETE FROM user WHERE id = $uuid".command
+    sql"DELETE FROM users WHERE id = $uuid".command
 
   override def delete(id: UUID): F[Unit] = session.use { s =>
     s.prepare(delete).use { session =>
       session.execute(id).void
     }
   }
-
-
 }
 
 object UserRepoSkunk {

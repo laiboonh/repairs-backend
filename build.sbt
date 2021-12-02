@@ -8,6 +8,7 @@ val RefinedVersion = "0.9.27"
 val Log4CatsVersion = "2.1.1"
 val TsecVersion = "0.4.0"
 val Slf4jVersion = "2.0.0-alpha5"
+val MockitoVersion = "3.2.10.0"
 
 lazy val root = project
   .in(file("."))

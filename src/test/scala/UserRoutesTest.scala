@@ -4,18 +4,16 @@ import cats.effect.unsafe.implicits.global
 import com.dimafeng.testcontainers.{ForAllTestContainer, PostgreSQLContainer}
 import io.circe.Json
 import models.{Role, User}
+import natchez.Trace.Implicits.noop
+import org.http4s.UriTemplate.PathElm
 import org.http4s.circe._
 import org.http4s.implicits._
-import org.http4s.{Method, Request, Response, Status, UriTemplate}
+import org.http4s.{Method, Request, Status, UriTemplate}
 import org.scalatest.Assertion
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 import routes.UserRoutes
 import skunk.{Session, Strategy}
-import skunk.data.Completion
-import skunk.implicits.toStringOps
-import natchez.Trace.Implicits.noop
-import org.http4s.UriTemplate.PathElm
 
 import java.util.UUID
 
@@ -71,15 +69,49 @@ class UserRoutesTest extends AnyWordSpec with Matchers with ForAllTestContainer 
         }
       }
     }
-    "ports.UserRepo.find returns notFound response" should {
-      "return ok status with user json" in withUserRepo { userRepoSkunk =>
+    "given id of a non existing user" should {
+      "return notfound status with no payload" in withUserRepo { userRepoSkunk =>
         for {
           res <- routes.UserRoutes(userRepoSkunk).orNotFound.run(
             Request(method = Method.GET, uri = uri(UUID.randomUUID()))
           )
+          payload <- res.body.compile.toVector
         } yield {
           res.status shouldBe Status.NotFound
-          res.body.compile.toVector.unsafeRunSync.isEmpty shouldBe true
+          payload shouldBe empty
+        }
+      }
+    }
+  }
+
+  "DELETE /users/id" when {
+    "given id belongs to an existing user" should {
+      "return ok status with no payload and user removed from database" in withUserRepo { userRepoSkunk =>
+        val id = UUID.randomUUID()
+        for {
+          _ <- userRepoSkunk.create(User(id, "foo", Role.BasicUser))
+          res <- UserRoutes(userRepoSkunk).orNotFound.run(
+            Request(method = Method.DELETE, uri = uri(id))
+          )
+          payload <- res.body.compile.toVector
+          retrieval <- userRepoSkunk.retrieve(id)
+        } yield {
+          retrieval shouldBe None
+          res.status shouldBe Status.Ok
+          payload shouldBe empty
+        }
+      }
+    }
+    "given id of a non existing user" should {
+      "return notfound status with no payload" in withUserRepo { userRepoSkunk =>
+        for {
+          res <- routes.UserRoutes(userRepoSkunk).orNotFound.run(
+            Request(method = Method.DELETE, uri = uri(UUID.randomUUID()))
+          )
+          payload <- res.body.compile.toVector
+        } yield {
+          res.status shouldBe Status.NotFound
+          payload shouldBe empty
         }
       }
     }
