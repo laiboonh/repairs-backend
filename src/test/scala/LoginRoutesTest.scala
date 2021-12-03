@@ -59,7 +59,6 @@ class LoginRoutesTest extends AnyWordSpec with Matchers with ForAllTestContainer
       "return token in header" in withUserRepo { userRepoSkunk =>
         val id = UUID.randomUUID()
         val body = LoginDetails(id)
-        implicit val directorDecoder: EntityEncoder[IO, LoginDetails] = jsonEncoderOf[IO, LoginDetails]
         for {
           _ <- userRepoSkunk.create(User(id, "foo", Role.BasicUser))
           authHelper = new AuthHelper(testAppConfig, userRepoSkunk)

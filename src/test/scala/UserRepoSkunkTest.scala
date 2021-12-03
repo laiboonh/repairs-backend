@@ -28,6 +28,7 @@ class UserRepoSkunkTest extends AnyWordSpec with Matchers with ForAllTestContain
       _ <- userRepoSkunk.session.use(_.execute(UserRepoSkunk.createTable))
       assertion <- testCode(userRepoSkunk)
       _ <- userRepoSkunk.session.use { s =>
+        s.transactionStatus
         s.transaction.use { _ =>
           for {
             _ <- s.execute(UserRepoSkunk.dropTable)
@@ -93,6 +94,19 @@ class UserRepoSkunkTest extends AnyWordSpec with Matchers with ForAllTestContain
         for {
           result <- userRepoSkunk.update(newUser)
         } yield result shouldBe newUser
+      }
+    }
+  }
+
+  "create" when {
+    "given an existing user" should {
+      "return a Left value" in withUserRepo { userRepoSkunk =>
+        val id = UUID.randomUUID()
+        val newUser = User(id, "john doe", Role.BasicUser)
+        for {
+          _ <- userRepoSkunk.create(newUser)
+          result <- userRepoSkunk.create(newUser)
+        } yield result.isLeft shouldBe true
       }
     }
   }

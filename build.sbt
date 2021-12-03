@@ -33,7 +33,8 @@ lazy val root = project
       "io.github.jmcardon" %% "tsec-http4s" % TsecVersion,
       "org.scalatest" %% "scalatest" % ScalaTestVersion % "test",
       "com.dimafeng" %% "testcontainers-scala-scalatest" % TestContainersScalaVersion % "test",
-      "com.dimafeng" %% "testcontainers-scala-postgresql" % TestContainersScalaVersion % "test"
+      "com.dimafeng" %% "testcontainers-scala-postgresql" % TestContainersScalaVersion % "test",
+      "org.typelevel" %% "cats-effect-testing-scalatest" % "1.4.0" % Test
     ),
     addCompilerPlugin("org.typelevel" % "kind-projector" % "0.13.2" cross CrossVersion.full),
 

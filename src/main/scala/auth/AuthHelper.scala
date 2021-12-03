@@ -2,7 +2,8 @@ package auth
 
 import cats.data.OptionT
 import cats.effect.Sync
-import cats.{Id, MonadError}
+import cats.implicits.toFunctorOps
+import cats.{ApplicativeError, Id}
 import conf.AppConfig
 import models.User
 import ports.UserRepo
@@ -14,13 +15,13 @@ import utils.GenericMemoryStore
 import java.util.UUID
 import scala.language.postfixOps
 
-class AuthHelper[F[_]](appConfig: AppConfig, val userRepo: UserRepo[F])(implicit F: MonadError[F, Throwable], S: Sync[F]) {
+class AuthHelper[F[_]](appConfig: AppConfig, val userRepo: UserRepo[F])(implicit F: ApplicativeError[F, Throwable], S: Sync[F]) {
 
   private val jwtStore =
     GenericMemoryStore[F, SecureRandomId, AugmentedJWT[HMACSHA256, UUID]](s => SecureRandomId.coerce(s.id))
 
   private val userStore: BackingStore[F, UUID, User] = new BackingStore[F, UUID, User] {
-    override def put(user: User): F[User] = userRepo.create(user)
+    override def put(user: User): F[User] = userRepo.create(user).map(_.getOrElse(User.empty))
 
     override def update(user: User): F[User] = userRepo.update(user)
 

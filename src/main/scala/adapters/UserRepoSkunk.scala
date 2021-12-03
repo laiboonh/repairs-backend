@@ -1,5 +1,6 @@
 package adapters
 
+import cats.ApplicativeError
 import cats.effect._
 import cats.implicits.toFunctorOps
 import models.{Role, User}
@@ -30,9 +31,14 @@ class UserRepoSkunk[F[_] : Concurrent](val session: Resource[F, Session[F]]) ext
   private val create: Command[User] =
     sql"INSERT INTO users (id, name, role) VALUES $userEncoder".command
 
-  override def create(user: User): F[User] = session.use { s =>
+  override def create(user: User)(implicit ae: ApplicativeError[F, Throwable]): F[Either[String, User]] =
+    ae.handleError(doCreate(user)) {
+      e => Left(e.getMessage)
+    }
+
+  private def doCreate(user: User): F[Either[String, User]] = session.use { s =>
     s.prepare(create).use { session =>
-      session.execute(user).map(_ => user)
+      session.execute(user).map(_ => Right(user))
     }
   }
 

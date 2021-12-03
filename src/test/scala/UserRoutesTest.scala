@@ -44,6 +44,10 @@ class UserRoutesTest extends AnyWordSpec with Matchers with ForAllTestContainer 
     } yield assertion).unsafeRunSync()
   }
 
+  private def uri() = UriTemplate(
+    path = List(PathElm("users"))
+  ).toUriIfPossible.get
+
   private def uri(id: UUID) = UriTemplate(
     path = List(PathElm("users"), PathElm(id.toString))
   ).toUriIfPossible.get
@@ -111,6 +115,79 @@ class UserRoutesTest extends AnyWordSpec with Matchers with ForAllTestContainer 
           payload <- res.body.compile.toVector
         } yield {
           res.status shouldBe Status.NotFound
+          payload shouldBe empty
+        }
+      }
+    }
+  }
+
+  "PUT /users/id" when {
+    "given id belongs to an existing user" should {
+      "return ok status with no payload and user updated" in withUserRepo { userRepoSkunk =>
+        val id = UUID.randomUUID()
+        val createdUser = User(id, "foo", Role.BasicUser)
+        val updatedUser = createdUser.copy(name = "bar")
+        for {
+          _ <- userRepoSkunk.create(createdUser)
+          res <- UserRoutes(userRepoSkunk).orNotFound.run(
+            Request(method = Method.PUT, uri = uri(id)).withEntity(updatedUser)
+          )
+          payload <- res.body.compile.toVector
+          retrieval <- userRepoSkunk.retrieve(id)
+        } yield {
+          retrieval shouldBe Option(updatedUser)
+          res.status shouldBe Status.Ok
+          payload shouldBe empty
+        }
+      }
+    }
+    "given id of a non existing user" should {
+      "return notfound status with no payload" in withUserRepo { userRepoSkunk =>
+        val id = UUID.randomUUID()
+        val nonExistingUser = User(id, "foo", Role.BasicUser)
+        for {
+          res <- routes.UserRoutes(userRepoSkunk).orNotFound.run(
+            Request(method = Method.PUT, uri = uri(UUID.randomUUID())).withEntity(nonExistingUser)
+          )
+          payload <- res.body.compile.toVector
+        } yield {
+          res.status shouldBe Status.NotFound
+          payload shouldBe empty
+        }
+      }
+    }
+  }
+
+  "POST /users" when {
+    "given proper user details" should {
+      "return ok status with no payload and user created" in withUserRepo { userRepoSkunk =>
+        val id = UUID.randomUUID()
+        val createdUser = User(id, "foo", Role.BasicUser)
+        for {
+          res <- UserRoutes(userRepoSkunk).orNotFound.run(
+            Request(method = Method.POST, uri = uri()).withEntity(createdUser)
+          )
+          payload <- res.body.compile.toVector
+          retrieval <- userRepoSkunk.retrieve(id)
+        } yield {
+          retrieval shouldBe Option(createdUser)
+          res.status shouldBe Status.Ok
+          payload shouldBe empty
+        }
+      }
+    }
+    "given details of an existing user" should {
+      "return internalServerError status with no payload" in withUserRepo { userRepoSkunk =>
+        val id = UUID.randomUUID()
+        val existingUser = User(id, "foo", Role.BasicUser)
+        for {
+          _ <- userRepoSkunk.create(existingUser)
+          res <- routes.UserRoutes(userRepoSkunk).orNotFound.run(
+            Request(method = Method.POST, uri = uri()).withEntity(existingUser)
+          )
+          payload <- res.body.compile.toVector
+        } yield {
+          res.status shouldBe Status.InternalServerError
           payload shouldBe empty
         }
       }

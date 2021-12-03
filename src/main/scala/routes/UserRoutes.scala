@@ -3,6 +3,7 @@ package routes
 import cats.effect.Concurrent
 import cats.implicits._
 import io.circe.syntax._
+import models.User
 import org.http4s.HttpRoutes
 import org.http4s.circe._
 import org.http4s.dsl.Http4sDsl
@@ -31,8 +32,25 @@ object UserRoutes {
           }
           res <- resF
         } yield res
-      //TODO CRUD with tests
-
+      case req@PUT -> Root / "users" / UUIDVar(id) =>
+        for {
+          userOpt <- repo.retrieve(id)
+          user <- req.as[User]
+          resF <- userOpt match {
+            case Some(_) => repo.update(user).map(_ => Ok())
+            case None => F.pure(NotFound())
+          }
+          res <- resF
+        } yield res
+      case req@POST -> Root / "users" =>
+        for {
+          user <- req.as[User]
+          resF <- repo.create(user).map {
+            case Left(_) => InternalServerError()
+            case Right(_) => Ok()
+          }
+          res <- resF
+        } yield res
     }
   }
 }

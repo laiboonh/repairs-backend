@@ -2,9 +2,7 @@ package routes
 
 import cats.effect.kernel.Concurrent
 import cats.implicits._
-import io.circe.Encoder
 import io.circe.generic.auto._
-import io.circe.generic.semiauto.deriveEncoder
 import models.{LoginDetails, User}
 import org.http4s._
 import org.http4s.circe.jsonOf
