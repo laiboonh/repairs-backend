@@ -11,6 +11,7 @@ val Slf4jVersion = "2.0.0-alpha5"
 val MockitoVersion = "3.2.10.0"
 val NewtypeVersion = "0.4.4"
 val DerevoVersion = "0.12.8"
+val DoobieVersion = "1.0.0-RC1"
 
 lazy val commonSettings = Seq(
   version := "0.1",
@@ -36,14 +37,14 @@ lazy val root = project
       "org.typelevel" %% "log4cats-slf4j" % Log4CatsVersion,
       "org.slf4j" % "slf4j-simple" % Slf4jVersion,
       "io.github.jmcardon" %% "tsec-http4s" % TsecVersion,
-      "io.estatico" %% "newtype" % "0.4.4",
-      "org.scalatest" %% "scalatest" % ScalaTestVersion % "test",
-      "com.dimafeng" %% "testcontainers-scala-scalatest" % TestContainersScalaVersion % "test",
-      "com.dimafeng" %% "testcontainers-scala-postgresql" % TestContainersScalaVersion % "test",
+      "org.tpolecat" %% "doobie-core" % DoobieVersion,
+      "org.tpolecat" %% "doobie-postgres" % DoobieVersion,
+      "org.tpolecat" %% "doobie-refined" % DoobieVersion,
+      "org.tpolecat" %% "doobie-scalatest" % DoobieVersion,
+      "org.scalatest" %% "scalatest" % ScalaTestVersion % Test,
+      "com.dimafeng" %% "testcontainers-scala-scalatest" % TestContainersScalaVersion % Test,
+      "com.dimafeng" %% "testcontainers-scala-postgresql" % TestContainersScalaVersion % Test,
       "org.typelevel" %% "cats-effect-testing-scalatest" % "1.4.0" % Test,
-      "org.tpolecat" %% "doobie-core" % "1.0.0-RC1",
-      "org.tpolecat" %% "doobie-postgres" % "1.0.0-RC1",
-      "org.tpolecat" %% "doobie-refined" % "1.0.0-RC1",
     ),
     Test / fork := true //https://github.com/testcontainers/testcontainers-scala
   )

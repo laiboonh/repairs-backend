@@ -1,27 +1,20 @@
 package conf
 
-import cats.effect.std.Console
-import cats.effect.{Concurrent, Resource}
+import cats.effect.kernel.Async
 import ciris.refined.refTypeConfigDecoder
 import ciris.{ConfigError, ConfigValue, Effect, env}
-import eu.timepit.refined.auto._
+import doobie.Transactor
+import doobie.util.transactor.Transactor.Aux
 import eu.timepit.refined.refineV
 import eu.timepit.refined.types.net.UserPortNumber
-import fs2.io.net.Network
-import natchez.Trace.Implicits.noop
-import skunk.util.Typer.Strategy
-import skunk.{SSL, Session}
 import types.RefinedTypes._
 
 case class DatabaseConfig(username: String, password: String, host: Host, port: UserPortNumber, databaseName: String) {
-  def skunkSession[F[_] : Concurrent : Network : Console]: Resource[F, Session[F]] = Session.single(
-    host = host,
-    port = port,
+  def doobieTransactor[F[_] : Async]: Aux[F, Unit] = Transactor.fromDriverManager[F](
+    driver = "org.postgresql.Driver",
+    url = s"jdbc:postgresql://$host:$port/$databaseName",
     user = username,
-    database = databaseName,
-    password = Some(password),
-    strategy = Strategy.SearchPath,
-    ssl = SSL.Trusted.withFallback(true) //fallback for dev environment with no SSL
+    pass = password
   )
 }
 

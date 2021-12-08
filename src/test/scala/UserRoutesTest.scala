@@ -1,10 +1,10 @@
-import adapters.UserRepoSkunk
+import adapters.UserRepoDoobie
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import com.dimafeng.testcontainers.{ForAllTestContainer, PostgreSQLContainer}
+import doobie.Transactor
 import io.circe.Json
 import models.{Role, User}
-import natchez.Trace.Implicits.noop
 import org.http4s.UriTemplate.PathElm
 import org.http4s.circe._
 import org.http4s.implicits._
@@ -13,34 +13,26 @@ import org.scalatest.Assertion
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 import routes.UserRoutes
-import skunk.{Session, Strategy}
 
 import java.util.UUID
 
 class UserRoutesTest extends AnyWordSpec with Matchers with ForAllTestContainer {
   override val container: PostgreSQLContainer = PostgreSQLContainer()
 
-  def withUserRepo(testCode: UserRepoSkunk[IO] => IO[Assertion]): Assertion = {
-    val userRepoSkunk = new UserRepoSkunk[IO](Session.single(
-      host = container.host,
-      port = container.mappedPort(5432),
+  def withUserRepo(testCode: UserRepoDoobie[IO] => IO[Assertion]): Assertion = {
+    val transactor = Transactor.fromDriverManager[IO](
+      driver = "org.postgresql.Driver",
+      url = s"jdbc:postgresql://${container.host}:${container.mappedPort(5432)}/${container.databaseName}",
       user = container.username,
-      database = container.databaseName,
-      password = Some(container.password),
-      strategy = Strategy.SearchPath
-    ))
+      pass = container.password
+    )
+    val userRepoDoobie: UserRepoDoobie[IO] = new UserRepoDoobie(transactor)
     (for {
-      _ <- userRepoSkunk.session.use(_.execute(UserRepoSkunk.createRoleEnum))
-      _ <- userRepoSkunk.session.use(_.execute(UserRepoSkunk.createTable))
-      assertion <- testCode(userRepoSkunk)
-      _ <- userRepoSkunk.session.use { s =>
-        s.transaction.use { _ =>
-          for {
-            _ <- s.execute(UserRepoSkunk.dropTable)
-            res <- s.execute(UserRepoSkunk.dropEnum)
-          } yield res
-        }
-      }
+      _ <- userRepoDoobie.DDL.createRoleEnum
+      _ <- userRepoDoobie.DDL.createTable
+      assertion <- testCode(userRepoDoobie)
+      _ <- userRepoDoobie.DDL.dropTable
+      _ <- userRepoDoobie.DDL.dropEnum
     } yield assertion).unsafeRunSync()
   }
 
@@ -107,15 +99,15 @@ class UserRoutesTest extends AnyWordSpec with Matchers with ForAllTestContainer 
       }
     }
     "given id of a non existing user" should {
-      "return notfound status with no payload" in withUserRepo { userRepoSkunk =>
+      "return InternalServerError status with no payload" in withUserRepo { userRepoSkunk =>
         for {
           res <- routes.UserRoutes(userRepoSkunk).orNotFound.run(
             Request(method = Method.DELETE, uri = uri(UUID.randomUUID()))
           )
-          payload <- res.body.compile.toVector
+          payload <- res.as[String]
         } yield {
-          res.status shouldBe Status.NotFound
-          payload shouldBe empty
+          res.status shouldBe Status.InternalServerError
+          payload shouldBe "Unexpected 0 number of rows affected"
         }
       }
     }

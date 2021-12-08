@@ -1,4 +1,4 @@
-import adapters.UserRepoSkunk
+import adapters.UserRepoDoobie
 import auth.AuthHelper
 import cats._
 import cats.effect._
@@ -142,8 +142,8 @@ object App extends IOApp {
   override def run(args: List[String]): IO[ExitCode] =
     for {
       appConfig <- AppConfig.config.load[IO]
-      session = appConfig.databaseConfig.skunkSession[IO]
-      userRepo = new UserRepoSkunk[IO](session)
+      transactor = appConfig.databaseConfig.doobieTransactor[IO]
+      userRepo = new UserRepoDoobie[IO](transactor)
       authHelper = new AuthHelper[IO](appConfig, userRepo)
       exitCode <- BlazeServerBuilder[IO]
         .bindHttp(appConfig.apiConfig.port, "0.0.0.0")

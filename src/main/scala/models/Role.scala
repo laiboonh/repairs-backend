@@ -1,15 +1,12 @@
 package models
 
 import cats.kernel.Eq
-import derevo.circe.{decoder, encoder}
-import derevo.derive
-import io.estatico.newtype.macros.newtype
+import doobie.Meta
+import doobie.postgres.implicits.pgEnumStringOpt
 import skunk.Codec
 import skunk.codec.all.`enum`
 import skunk.data.Type
 import tsec.authorization.{AuthGroup, SimpleAuthEnum}
-
-import scala.reflect.ClassTag
 
 case class Role(roleRepr: String)
 
@@ -29,10 +26,16 @@ object Role extends SimpleAuthEnum[Role, String] {
   else
     None
 
-  override protected val values: AuthGroup[Role] = {
-    implicit val x = ClassTag[Role](Administrator.getClass)
-    AuthGroup(Administrator, BasicUser)
-  }
+  override protected val values: AuthGroup[Role] = AuthGroup(Administrator, BasicUser)
 
+  //doobie
+  def toEnum(e: Role): String =
+    getRepr(e)
+
+  def fromEnum(s: String): Option[Role] =
+    getRole(s)
+
+  implicit val RoleMeta: Meta[Role] =
+    pgEnumStringOpt("role", Role.fromEnum, Role.toEnum)
 }
 

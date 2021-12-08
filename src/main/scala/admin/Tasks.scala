@@ -1,22 +1,20 @@
 package admin
 
-import adapters.UserRepoSkunk
+import adapters.UserRepoDoobie
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import conf.DatabaseConfig
-import skunk.data.Completion
 
 object Tasks {
-
-  val userRepoIO: IO[UserRepoSkunk[IO]] = for {
+  val userRepoDoobieIO: IO[UserRepoDoobie[IO]] = for {
     databaseConfig <- DatabaseConfig.config.load[IO]
-  } yield new UserRepoSkunk(databaseConfig.skunkSession[IO])
+  } yield new UserRepoDoobie(databaseConfig.doobieTransactor[IO])
 
-  def run: Completion = (for {
-    userRepo <- userRepoIO
-    _ <- userRepo.session.use(_.execute(UserRepoSkunk.createRoleEnum))
-    result <- userRepo.session.use(_.execute(UserRepoSkunk.createTable))
-  } yield result).unsafeRunSync()
+  def run = (for {
+    userRepoDoobie <- userRepoDoobieIO
+    result <- userRepoDoobie.DDL.dropTable
+    //    result <- userRepoDoobie.DDL.createTable
+  } yield result).map(println(_)).unsafeRunSync()
 
 
 }

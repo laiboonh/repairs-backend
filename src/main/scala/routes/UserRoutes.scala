@@ -25,22 +25,27 @@ object UserRoutes {
         } yield res
       case DELETE -> Root / "users" / UUIDVar(id) =>
         for {
-          userOpt <- repo.retrieve(id)
-          resF <- userOpt match {
-            case Some(_) => repo.delete(id).map(_ => Ok())
-            case None => F.pure(NotFound())
+          either <- repo.delete(id)
+          res <- either match {
+            case Left(e) => InternalServerError(e)
+            case Right(_) => Ok()
           }
-          res <- resF
         } yield res
       case req@PUT -> Root / "users" / UUIDVar(id) =>
         for {
           userOpt <- repo.retrieve(id)
           user <- req.as[User]
-          resF <- userOpt match {
-            case Some(_) => repo.update(user).map(_ => Ok())
-            case None => F.pure(NotFound())
+          res <- userOpt match {
+            case None => NotFound()
+            case Some(_) =>
+              for {
+                either <- repo.update(user)
+                res <- either match {
+                  case Left(e) => InternalServerError(e)
+                  case Right(_) => Ok()
+                }
+              } yield res
           }
-          res <- resF
         } yield res
       case req@POST -> Root / "users" =>
         for {

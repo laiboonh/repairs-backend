@@ -1,21 +1,19 @@
-import adapters.UserRepoSkunk
+import adapters.UserRepoDoobie
 import auth.AuthHelper
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import com.dimafeng.testcontainers.{ForAllTestContainer, PostgreSQLContainer}
 import conf.{ApiConfig, AppConfig, DatabaseConfig}
+import doobie.Transactor
 import eu.timepit.refined.auto._
 import models.{LoginDetails, Role, User}
-import natchez.Trace.Implicits.noop
-import org.http4s.circe._
 import org.http4s.headers.Authorization
 import org.http4s.implicits._
-import org.http4s.{EntityEncoder, Method, Request, Status}
+import org.http4s.{Method, Request, Status}
 import org.scalatest.Assertion
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 import routes.LoginRoutes
-import skunk.{Session, Strategy}
 
 import java.util.UUID
 import scala.concurrent.duration._
@@ -25,27 +23,20 @@ import scala.language.postfixOps
 class LoginRoutesTest extends AnyWordSpec with Matchers with ForAllTestContainer {
   override val container: PostgreSQLContainer = PostgreSQLContainer()
 
-  def withUserRepo(testCode: UserRepoSkunk[IO] => IO[Assertion]): Assertion = {
-    val userRepoSkunk = new UserRepoSkunk[IO](Session.single(
-      host = container.host,
-      port = container.mappedPort(5432),
+  def withUserRepo(testCode: UserRepoDoobie[IO] => IO[Assertion]): Assertion = {
+    val transactor = Transactor.fromDriverManager[IO](
+      driver = "org.postgresql.Driver",
+      url = s"jdbc:postgresql://${container.host}:${container.mappedPort(5432)}/${container.databaseName}",
       user = container.username,
-      database = container.databaseName,
-      password = Some(container.password),
-      strategy = Strategy.SearchPath
-    ))
+      pass = container.password
+    )
+    val userRepoDoobie: UserRepoDoobie[IO] = new UserRepoDoobie(transactor)
     (for {
-      _ <- userRepoSkunk.session.use(_.execute(UserRepoSkunk.createRoleEnum))
-      _ <- userRepoSkunk.session.use(_.execute(UserRepoSkunk.createTable))
-      assertion <- testCode(userRepoSkunk)
-      _ <- userRepoSkunk.session.use { s =>
-        s.transaction.use { _ =>
-          for {
-            _ <- s.execute(UserRepoSkunk.dropTable)
-            res <- s.execute(UserRepoSkunk.dropEnum)
-          } yield res
-        }
-      }
+      _ <- userRepoDoobie.DDL.createRoleEnum
+      _ <- userRepoDoobie.DDL.createTable
+      assertion <- testCode(userRepoDoobie)
+      _ <- userRepoDoobie.DDL.dropTable
+      _ <- userRepoDoobie.DDL.dropEnum
     } yield assertion).unsafeRunSync()
   }
 
