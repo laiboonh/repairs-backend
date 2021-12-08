@@ -21,11 +21,11 @@ class AuthHelper[F[_]](appConfig: AppConfig, val userRepo: UserRepo[F])(implicit
     GenericMemoryStore[F, SecureRandomId, AugmentedJWT[HMACSHA256, UUID]](s => SecureRandomId.coerce(s.id))
 
   private val userStore: BackingStore[F, UUID, User] = new BackingStore[F, UUID, User] {
-    override def put(user: User): F[User] = userRepo.create(user).map(_.getOrElse(User.empty))
+    override def put(user: User): F[User] = F.pure(user)
 
-    override def update(user: User): F[User] = userRepo.update(user)
+    override def update(user: User): F[User] = F.pure(user)
 
-    override def delete(id: UUID): F[Unit] = userRepo.delete(id)
+    override def delete(id: UUID): F[Unit] = F.pure(id).void
 
     override def get(id: UUID): OptionT[F, User] = OptionT(
       userRepo.retrieve(id)

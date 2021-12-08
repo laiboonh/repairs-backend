@@ -2,7 +2,7 @@ package conf
 
 import cats.effect.std.Console
 import cats.effect.{Concurrent, Resource}
-import ciris.refined._
+import ciris.refined.refTypeConfigDecoder
 import ciris.{ConfigError, ConfigValue, Effect, env}
 import eu.timepit.refined.auto._
 import eu.timepit.refined.refineV
@@ -11,7 +11,7 @@ import fs2.io.net.Network
 import natchez.Trace.Implicits.noop
 import skunk.util.Typer.Strategy
 import skunk.{SSL, Session}
-import utils.types.{DatabaseUrl, Host}
+import types.RefinedTypes._
 
 case class DatabaseConfig(username: String, password: String, host: Host, port: UserPortNumber, databaseName: String) {
   def skunkSession[F[_] : Concurrent : Network : Console]: Resource[F, Session[F]] = Session.single(

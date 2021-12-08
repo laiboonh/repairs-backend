@@ -1,12 +1,17 @@
 package models
 
 import cats.kernel.Eq
+import derevo.circe.{decoder, encoder}
+import derevo.derive
+import io.estatico.newtype.macros.newtype
 import skunk.Codec
 import skunk.codec.all.`enum`
 import skunk.data.Type
 import tsec.authorization.{AuthGroup, SimpleAuthEnum}
 
-sealed case class Role(roleRepr: String)
+import scala.reflect.ClassTag
+
+case class Role(roleRepr: String)
 
 object Role extends SimpleAuthEnum[Role, String] {
 
@@ -17,10 +22,17 @@ object Role extends SimpleAuthEnum[Role, String] {
 
   implicit val E: Eq[Role] = Eq.fromUniversalEquals[Role]
 
-  def getRepr(t: Role): String = t.roleRepr
+  override def getRepr(t: Role): String = t.roleRepr
 
-  def getRole(repr: String): Option[Role] = if (values.contains(Role(repr))) Some(Role(repr)) else None
+  def getRole(repr: String): Option[Role] = if (values.contains(Role(repr)))
+    Some(Role(repr))
+  else
+    None
 
-  protected val values: AuthGroup[Role] = AuthGroup(Administrator, BasicUser)
+  override protected val values: AuthGroup[Role] = {
+    implicit val x = ClassTag[Role](Administrator.getClass)
+    AuthGroup(Administrator, BasicUser)
+  }
+
 }
 
