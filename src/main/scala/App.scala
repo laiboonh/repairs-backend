@@ -114,13 +114,16 @@ object App extends IOApp {
     }
   }
 
-  def allRoutes[F[_] : Concurrent : Network : Console](authHelper: AuthHelper[F])(userRepo: UserRepo[F]): HttpApp[F] = (
-    movieRoutes[F] <+>
-      directorRoutes[F] <+>
-      UserRoutes(userRepo) <+>
-      new LoginRoutes(userRepo).routes(authHelper.jwtStatefulAuth) <+>
-      test(authHelper)
+  def allRoutes[F[_] : Concurrent : Network : Console](authHelper: AuthHelper[F])(userRepo: UserRepo[F]): HttpApp[F] = {
+    import org.http4s.server.middleware._
+    CORS.policy.withAllowOriginAll(
+      movieRoutes[F] <+>
+        directorRoutes[F] <+>
+        UserRoutes(userRepo) <+>
+        new LoginRoutes(userRepo).routes(authHelper.jwtStatefulAuth) <+>
+        test(authHelper)
     ).orNotFound
+  }
 
   def test[F[_] : Concurrent](authHelper: AuthHelper[F]): HttpRoutes[F] = {
     val dsl = Http4sDsl[F]
