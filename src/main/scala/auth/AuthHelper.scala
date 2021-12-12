@@ -11,7 +11,7 @@ import sun.reflect.generics.reflectiveObjects.NotImplementedException
 import tsec.authentication.{AugmentedJWT, BackingStore, JWTAuthenticator, SecuredRequestHandler}
 import tsec.common.SecureRandomId
 import tsec.mac.jca.{HMACSHA256, MacSigningKey}
-import utils.GenericMemoryStore
+import core.GenericMemoryStore
 
 import java.util.UUID
 import scala.language.postfixOps

@@ -7,7 +7,7 @@ import doobie.Transactor
 import doobie.util.transactor.Transactor.Aux
 import eu.timepit.refined.refineV
 import eu.timepit.refined.types.net.UserPortNumber
-import types.RefinedTypes._
+import core.RefinedTypes._
 
 case class DatabaseConfig(username: String, password: String, host: Host, port: UserPortNumber, databaseName: String) {
   def doobieTransactor[F[_] : Async]: Aux[F, Unit] = Transactor.fromDriverManager[F](

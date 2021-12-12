@@ -13,16 +13,11 @@ val NewtypeVersion = "0.4.4"
 val DerevoVersion = "0.12.8"
 val DoobieVersion = "1.0.0-RC1"
 
-lazy val commonSettings = Seq(
-  version := "0.1",
-  scalaVersion := "2.13.7",
-  addCompilerPlugin("org.typelevel" % "kind-projector" % "0.13.2" cross CrossVersion.full),
-)
-
 lazy val root = project
   .in(file("."))
   .settings(
-    commonSettings,
+    version := "0.1",
+    scalaVersion := "2.13.7",
     name := "repairs-backend",
     libraryDependencies ++= Seq(
       "org.http4s" %% "http4s-blaze-server" % Http4sVersion,
@@ -46,25 +41,7 @@ lazy val root = project
       "com.dimafeng" %% "testcontainers-scala-postgresql" % TestContainersScalaVersion % Test,
       "org.typelevel" %% "cats-effect-testing-scalatest" % "1.4.0" % Test,
     ),
+    addCompilerPlugin("org.typelevel" % "kind-projector" % "0.13.2" cross CrossVersion.full),
     Test / fork := true //https://github.com/testcontainers/testcontainers-scala
   )
   .enablePlugins(JavaAppPackaging) //https://devcenter.heroku.com/articles/deploying-scala
-  .aggregate(macros)
-  .dependsOn(macros)
-
-lazy val macros = project
-  .in(file("macros"))
-  .settings(
-    commonSettings,
-    name := "repairs-backend-models",
-    libraryDependencies ++= Seq(
-      "io.estatico" %% "newtype" % NewtypeVersion,
-      "eu.timepit" %% "refined" % RefinedVersion,
-      "io.circe" %% "circe-refined" % CirceVersion,
-      "tf.tofu" %% "derevo-circe" % DerevoVersion,
-    ),
-    scalacOptions ++= Seq(
-      "-Ymacro-annotations"
-    )
-  )
-

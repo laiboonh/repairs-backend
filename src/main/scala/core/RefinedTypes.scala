@@ -1,4 +1,4 @@
-package types
+package core
 
 import eu.timepit.refined.api.Refined
 import eu.timepit.refined.string.MatchesRegex
