@@ -7,6 +7,7 @@ import models.{Role, User}
 import org.scalatest.Assertion
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
+import eu.timepit.refined.auto._
 
 import java.util.UUID
 
@@ -34,7 +35,7 @@ class UserRepoDoobieTest extends AnyWordSpec with Matchers with ForAllTestContai
     val id = UUID.randomUUID()
     "given id of existing user" should {
       "return some user" in withUserRepo { userRepoDoobie =>
-        val newUser = User(id, "john doe", Role.BasicUser)
+        val newUser = User(id, "foo@foo.com", "password", Role.BasicUser)
         for {
           _ <- userRepoDoobie.create(newUser)
           maybeUser <- userRepoDoobie.retrieve(id)
@@ -52,7 +53,7 @@ class UserRepoDoobieTest extends AnyWordSpec with Matchers with ForAllTestContai
     val id = UUID.randomUUID()
     "given id of existing user" should {
       "return ()" in withUserRepo { userRepoDoobie =>
-        val newUser = User(id, "john doe", Role.BasicUser)
+        val newUser = User(id, "foo@foo.com", "password", Role.BasicUser)
         for {
           _ <- userRepoDoobie.create(newUser)
           result <- userRepoDoobie.delete(id)
@@ -70,10 +71,10 @@ class UserRepoDoobieTest extends AnyWordSpec with Matchers with ForAllTestContai
     "given an existing user" should {
       "return ()" in withUserRepo { userRepoDoobie =>
         val id = UUID.randomUUID()
-        val newUser = User(id, "john doe", Role.BasicUser)
+        val newUser = User(id, "foo@foo.com", "password", Role.BasicUser)
         for {
           _ <- userRepoDoobie.create(newUser)
-          updatedUser = newUser.copy(name = "foo", role = Role.Administrator)
+          updatedUser = newUser.copy(email = "foo@bar.com", role = Role.Administrator)
           result <- userRepoDoobie.update(updatedUser)
         } yield result shouldBe Right(())
       }
@@ -81,7 +82,7 @@ class UserRepoDoobieTest extends AnyWordSpec with Matchers with ForAllTestContai
     "given a non existing user" should {
       "will return error message" in withUserRepo { userRepoDoobie =>
         val id = UUID.randomUUID()
-        val newUser = User(id, "john doe", Role.BasicUser)
+        val newUser = User(id, "foo@foo.com", "password", Role.BasicUser)
         for {
           result <- userRepoDoobie.update(newUser)
         } yield result shouldBe Left("Unexpected 0 number of rows affected")
@@ -93,7 +94,7 @@ class UserRepoDoobieTest extends AnyWordSpec with Matchers with ForAllTestContai
     "given an existing user" should {
       "return error message" in withUserRepo { userRepoDoobie =>
         val id = UUID.randomUUID()
-        val newUser = User(id, "john doe", Role.BasicUser)
+        val newUser = User(id, "foo@foo.com", "password", Role.BasicUser)
         for {
           _ <- userRepoDoobie.create(newUser)
           result <- userRepoDoobie.create(newUser)

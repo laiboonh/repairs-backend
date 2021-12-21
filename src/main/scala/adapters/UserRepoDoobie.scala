@@ -5,6 +5,7 @@ import doobie.implicits._
 import doobie.util.transactor.Transactor
 import doobie.postgres._
 import doobie.postgres.implicits._
+import doobie.refined.implicits._
 import models.User
 import ports.UserRepo
 
@@ -12,23 +13,23 @@ import java.util.UUID
 
 class UserRepoDoobie[F[_] : Async](transactor: Transactor.Aux[F, Unit]) extends UserRepo[F] {
   override def create(user: User): F[Either[String, User]] = {
-    sql"INSERT INTO users (id, name, role) VALUES (${user.id}, ${user.name}, ${user.role})"
+    sql"INSERT INTO users (id, email, password, role) VALUES (${user.id}, ${user.email.value}, ${user.password.value}, ${user.role})"
       .update
-      .withUniqueGeneratedKeys[User]("id", "name", "role")
+      .withUniqueGeneratedKeys[User]("id", "email", "password", "role")
       .attemptSomeSqlState {
         case sqlstate.class23.UNIQUE_VIOLATION => "Unique Violation"
       }.transact(transactor)
   }
 
   override def retrieve(id: UUID): F[Option[User]] =
-    sql"SELECT id, name, role::role from users where id = $id"
+    sql"SELECT id, email, password, role::role from users where id = $id"
       .query[User]
       .option
       .transact(transactor)
 
 
   override def update(user: User): F[Either[String, Unit]] =
-    sql"UPDATE users SET name = ${user.name}, role = ${user.role} where id = ${user.id}"
+    sql"UPDATE users SET email = ${user.email.value}, password = ${user.password.value}, role = ${user.role} where id = ${user.id}"
       .update
       .run
       .map {
@@ -52,7 +53,8 @@ class UserRepoDoobie[F[_] : Async](transactor: Transactor.Aux[F, Unit]) extends 
       sql"""
         CREATE TABLE IF NOT EXISTS users (
           "id" uuid NOT NULL,
-          "name" varchar NOT NULL,
+          "email" varchar NOT NULL,
+          "password" varchar NOT NULL,
           "role" role NOT NULL,
           CONSTRAINT users_pk PRIMARY KEY (id)
         )

@@ -51,7 +51,7 @@ class LoginRoutesTest extends AnyWordSpec with Matchers with ForAllTestContainer
         val id = UUID.randomUUID()
         val body = LoginDetails(id)
         for {
-          _ <- userRepoSkunk.create(User(id, "foo", Role.BasicUser))
+          _ <- userRepoSkunk.create(User(id, "foo@foo.com", "bar", Role.BasicUser))
           authHelper = new AuthHelper(testAppConfig, userRepoSkunk)
           res <- new LoginRoutes(userRepoSkunk).routes(authHelper.jwtStatefulAuth).orNotFound.run(
             Request(method = Method.POST, uri = uri"/login").withEntity(body)

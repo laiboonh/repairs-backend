@@ -1,9 +1,9 @@
-val Http4sVersion = "0.23.6"
+val Http4sVersion = "0.23.7"
 val CirceVersion = "0.14.1"
 val ScalaTestVersion = "3.2.10"
 val SkunkVersion = "0.2.2"
 val TestContainersScalaVersion = "0.39.12"
-val CirisVersion = "2.2.1"
+val CirisVersion = "2.3.1"
 val RefinedVersion = "0.9.28"
 val Log4CatsVersion = "2.1.1"
 val TsecVersion = "0.4.0"
@@ -24,6 +24,7 @@ lazy val root = project
       "org.http4s" %% "http4s-circe" % Http4sVersion,
       "org.http4s" %% "http4s-dsl" % Http4sVersion,
       "io.circe" %% "circe-generic" % CirceVersion,
+      "io.circe" %% "circe-refined" % CirceVersion,
       "org.tpolecat" %% "skunk-core" % SkunkVersion,
       "is.cir" %% "ciris" % CirisVersion,
       "is.cir" %% "ciris-enumeratum" % CirisVersion,

@@ -13,6 +13,7 @@ import org.scalatest.Assertion
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 import routes.UserRoutes
+import eu.timepit.refined.auto._
 
 import java.util.UUID
 
@@ -49,7 +50,7 @@ class UserRoutesTest extends AnyWordSpec with Matchers with ForAllTestContainer 
       "return ok status with user json" in withUserRepo { userRepoSkunk =>
         val id = UUID.randomUUID()
         for {
-          _ <- userRepoSkunk.create(User(id, "foo", Role.BasicUser))
+          _ <- userRepoSkunk.create(User(id, "foo@foo.com", "password", Role.BasicUser))
           res <- UserRoutes(userRepoSkunk).orNotFound.run(
             Request(method = Method.GET, uri = uri(id))
           )
@@ -57,7 +58,8 @@ class UserRoutesTest extends AnyWordSpec with Matchers with ForAllTestContainer 
         } yield {
           val expectedJson = Json.obj(
             ("id", Json.fromString(id.toString)),
-            ("name", Json.fromString("foo")),
+            ("email", Json.fromString("foo@foo.com")),
+            ("password", Json.fromString("password")),
             ("role", Json.fromString("BasicUser"))
           )
           res.status shouldBe Status.Ok
@@ -85,7 +87,7 @@ class UserRoutesTest extends AnyWordSpec with Matchers with ForAllTestContainer 
       "return ok status with no payload and user removed from database" in withUserRepo { userRepoSkunk =>
         val id = UUID.randomUUID()
         for {
-          _ <- userRepoSkunk.create(User(id, "foo", Role.BasicUser))
+          _ <- userRepoSkunk.create(User(id, "foo@foo.com", "password", Role.BasicUser))
           res <- UserRoutes(userRepoSkunk).orNotFound.run(
             Request(method = Method.DELETE, uri = uri(id))
           )
@@ -117,8 +119,8 @@ class UserRoutesTest extends AnyWordSpec with Matchers with ForAllTestContainer 
     "given id belongs to an existing user" should {
       "return ok status with no payload and user updated" in withUserRepo { userRepoSkunk =>
         val id = UUID.randomUUID()
-        val createdUser = User(id, "foo", Role.BasicUser)
-        val updatedUser = createdUser.copy(name = "bar")
+        val createdUser = User(id, "foo@foo.com", "password", Role.BasicUser)
+        val updatedUser = createdUser.copy(email = "foo@bar.com")
         for {
           _ <- userRepoSkunk.create(createdUser)
           res <- UserRoutes(userRepoSkunk).orNotFound.run(
@@ -136,7 +138,7 @@ class UserRoutesTest extends AnyWordSpec with Matchers with ForAllTestContainer 
     "given id of a non existing user" should {
       "return notfound status with no payload" in withUserRepo { userRepoSkunk =>
         val id = UUID.randomUUID()
-        val nonExistingUser = User(id, "foo", Role.BasicUser)
+        val nonExistingUser = User(id, "foo@foo.com", "password", Role.BasicUser)
         for {
           res <- routes.UserRoutes(userRepoSkunk).orNotFound.run(
             Request(method = Method.PUT, uri = uri(UUID.randomUUID())).withEntity(nonExistingUser)
@@ -154,7 +156,7 @@ class UserRoutesTest extends AnyWordSpec with Matchers with ForAllTestContainer 
     "given proper user details" should {
       "return ok status with no payload and user created" in withUserRepo { userRepoSkunk =>
         val id = UUID.randomUUID()
-        val createdUser = User(id, "foo", Role.BasicUser)
+        val createdUser = User(id, "foo@foo.com", "password", Role.BasicUser)
         for {
           res <- UserRoutes(userRepoSkunk).orNotFound.run(
             Request(method = Method.POST, uri = uri()).withEntity(createdUser)
@@ -171,7 +173,7 @@ class UserRoutesTest extends AnyWordSpec with Matchers with ForAllTestContainer 
     "given details of an existing user" should {
       "return internalServerError status with no payload" in withUserRepo { userRepoSkunk =>
         val id = UUID.randomUUID()
-        val existingUser = User(id, "foo", Role.BasicUser)
+        val existingUser = User(id, "foo@foo.com", "password", Role.BasicUser)
         for {
           _ <- userRepoSkunk.create(existingUser)
           res <- routes.UserRoutes(userRepoSkunk).orNotFound.run(
